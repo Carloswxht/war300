@@ -723,11 +723,25 @@
     padding:10px 2px;
     border-bottom:1px solid var(--line);
   }
+  .picker-row.no-border{border-bottom:none;}
   .picker-row label{font-size:13.5px;color:var(--text);}
   .picker-row input[type="color"]{
     width:36px;height:36px;border:none;border-radius:8px;
     background:none;padding:0;cursor:pointer;
   }
+  .swatch-strip{
+    display:flex;gap:9px;overflow-x:auto;
+    padding:2px 2px 12px;
+    border-bottom:1px solid var(--line);
+  }
+  .swatch-strip::-webkit-scrollbar{display:none;}
+  .preset-dot{
+    width:26px;height:26px;min-width:26px;
+    border-radius:50%;
+    border:2px solid rgba(128,128,128,.35);
+    cursor:pointer;
+  }
+  .preset-dot:active{transform:scale(.9);}
   .advanced-toggle{
     font-size:12.5px;color:var(--text-dim);
     text-decoration:underline;cursor:pointer;
@@ -864,26 +878,35 @@
       <button class="personalize-btn" id="personalizeBtn">Personalizar</button>
 
       <div class="custom-builder" id="customBuilder">
-        <div class="picker-row">
+        <div class="picker-row no-border">
           <label>Fondo</label>
           <input type="color" id="cFondo" value="#0E1013">
         </div>
-        <div class="picker-row">
+        <div class="swatch-strip" data-target="cFondo" id="stripFondo"></div>
+
+        <div class="picker-row no-border">
           <label>Día 1 (Empuje)</label>
           <input type="color" id="cDay1" value="#FF8A3D">
         </div>
-        <div class="picker-row">
+        <div class="swatch-strip" data-target="cDay1" id="stripDay1"></div>
+
+        <div class="picker-row no-border">
           <label>Día 2 (Pierna)</label>
           <input type="color" id="cDay2" value="#33D17A">
         </div>
-        <div class="picker-row">
+        <div class="swatch-strip" data-target="cDay2" id="stripDay2"></div>
+
+        <div class="picker-row no-border">
           <label>Día 3 (Tirón)</label>
           <input type="color" id="cDay3" value="#4FA3FF">
         </div>
-        <div class="picker-row">
+        <div class="swatch-strip" data-target="cDay3" id="stripDay3"></div>
+
+        <div class="picker-row no-border">
           <label>Día 4 (Extra)</label>
           <input type="color" id="cDay4" value="#C792EA">
         </div>
+        <div class="swatch-strip" data-target="cDay4" id="stripDay4"></div>
 
         <p class="advanced-toggle" id="advancedToggle">Personalizar detalles ▾</p>
         <div class="advanced-panel" id="advancedPanel">
@@ -2096,6 +2119,24 @@ document.getElementById('settingsClose').addEventListener('click', ()=>{
 });
 settingsOverlay.addEventListener('click', (e)=>{
   if(e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+
+// Paleta amplia de colores rápidos para cada selector
+const PRESET_COLORS = [
+  '#FFFFFF','#000000','#FF3B30','#FF9500','#FFCC00','#34C759','#00C7BE',
+  '#30B0C7','#007AFF','#5856D6','#AF52DE','#FF2D55','#FF6B9D','#00FFAA',
+  '#A2845E','#8E8E93','#0E1013','#1A1330','#FF8A3D','#33D17A','#4FA3FF','#C792EA'
+];
+
+document.querySelectorAll('.swatch-strip').forEach(strip=>{
+  strip.innerHTML = PRESET_COLORS.map(c=>`<span class="preset-dot" style="background:${c};" data-color="${c}"></span>`).join('');
+  strip.querySelectorAll('.preset-dot').forEach(dot=>{
+    dot.addEventListener('click', ()=>{
+      const target = document.getElementById(strip.dataset.target);
+      target.value = dot.dataset.color;
+      target.dispatchEvent(new Event('input'));
+    });
+  });
 });
 
 const customBuilder = document.getElementById('customBuilder');
