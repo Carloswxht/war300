@@ -169,7 +169,47 @@
   .continue-mini svg{width:16px;height:16px;}
   .continue-mini:active{opacity:.6;}
 
-  #view-exercises, #view-execution{display:none;}
+  #view-exercises, #view-execution, #view-checklist{display:none;}
+
+  .home-history{
+    display:flex;gap:10px;overflow-x:auto;
+    padding:2px 2px 6px;margin-bottom:18px;
+    scroll-snap-type:x proximity;
+  }
+  .home-history::-webkit-scrollbar{display:none;}
+  .history-card{
+    scroll-snap-align:start;
+    flex:0 0 auto;
+    width:150px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+  }
+  .history-card .hc-date{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;margin:0 0 6px;}
+  .history-card .hc-day{font-size:14px;font-weight:800;margin:0 0 8px;}
+  .history-card .hc-list{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin:0;}
+  .history-empty{
+    font-size:12.5px;color:var(--text-dim);
+    padding:14px 2px;
+  }
+  .today-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:24px;
+    cursor:pointer;
+  }
+  .today-card .tc-kicker{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;}
+  .today-card .tc-title{font-size:22px;font-weight:800;margin:0 0 10px;}
+  .today-card .tc-list{font-size:13.5px;color:var(--text-dim);line-height:1.6;margin:0 0 18px;}
+  .today-card .tc-cta{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--text);color:var(--ink);
+    font-weight:700;font-size:14px;
+    padding:13px 20px;border-radius:12px;
+  }
+  .today-card .tc-cta svg{width:15px;height:15px;}
   .ex-topbar{
     display:flex;align-items:center;gap:12px;
     margin-bottom:24px;
@@ -541,13 +581,39 @@
   }
   .auth-msg.error{color:#FF8A3D;}
 
-  #logoutBtn{
+  #profileBtn{
     position:fixed;top:18px;right:18px;
-    background:transparent;border:1px solid var(--line);
-    color:var(--text-dim);font-size:11.5px;
-    padding:7px 12px;border-radius:8px;
+    width:38px;height:38px;
+    border-radius:50%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    display:flex;align-items:center;justify-content:center;
     z-index:16;cursor:pointer;
   }
+  #profileBtn svg{width:18px;height:18px;}
+  .dropdown{
+    position:fixed;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:6px;
+    min-width:170px;
+    z-index:17;
+    display:none;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .dropdown.open{display:block;}
+  .dropdown-item{
+    display:flex;align-items:center;gap:10px;
+    padding:11px 12px;border-radius:8px;
+    font-size:14px;font-weight:600;color:var(--text);
+    cursor:pointer;
+  }
+  .dropdown-item:active{background:var(--panel-2);}
+  .dropdown-item svg{width:16px;height:16px;color:var(--text-dim);flex-shrink:0;}
+  #profileMenu{top:62px;right:18px;}
+  #navMenu{bottom:78px;left:14px;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -592,14 +658,44 @@
     </div>
   </div>
 
-  <button id="logoutBtn">Salir</button>
+  <button id="profileBtn" aria-label="Perfil">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 20C4 16.6863 7.58172 14 12 14C16.4183 14 20 16.6863 20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <div class="dropdown" id="profileMenu">
+    <div class="dropdown-item" id="logoutBtn">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Cerrar sesión
+    </div>
+  </div>
 
-  <div class="masthead">
+  <div class="dropdown" id="navMenu">
+    <div class="dropdown-item" id="navHome">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 11L12 4L20 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10V19C6 19.5523 6.44772 20 7 20H17C17.5523 20 18 19.5523 18 19V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Inicio
+    </div>
+    <div class="dropdown-item" id="navRutina">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 6H20M4 12H20M4 18H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Rutina
+    </div>
+  </div>
+
+  <div class="masthead" id="masthead">
     <p class="kicker">War300</p>
     <h1>Tu semana de entreno.</h1>
   </div>
 
+  <div id="view-home">
+    <div id="homeHistory" class="home-history"></div>
+    <div id="homeToday"></div>
+  </div>
+
   <div id="view-checklist">
+    <div class="ex-topbar">
+      <button class="back-btn" id="homeBackBtn" aria-label="Volver al inicio">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Programa tu entreno</h2>
+    </div>
     <div class="board" id="board"></div>
   </div>
 
@@ -625,6 +721,7 @@
     </div>
     <div id="execCard"></div>
   </div>
+
 
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal-sheet">
@@ -1084,6 +1181,10 @@ function buildExecList(){
   checkedSubs.forEach(el=>{
     const sub = SUB_INDEX[el.dataset.sub];
     if(!sub) return;
+    if(!chosenExercise[sub.id]){
+      const opts = exercisesFor(sub.muscleName, sub.name);
+      if(opts.length) chosenExercise[sub.id] = opts[0];
+    }
     const exName = chosenExercise[sub.id];
     if(!exName) return;
     const dayObj = [...DAYS, DAY4].find(d=>d.name === sub.dayName);
@@ -1099,7 +1200,9 @@ function renderExecCard(){
       <div class="exec-done">
         <h2>¡Listo! 💪</h2>
         <p>Terminaste todos los ejercicios que elegiste para hoy.</p>
+        <button id="execDoneHome" style="margin-top:22px;width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">Volver al inicio</button>
       </div>`;
+    document.getElementById('execDoneHome').addEventListener('click', goHome);
     return;
   }
   const item = execList[execIndex];
@@ -1217,16 +1320,128 @@ function renderExecCard(){
   document.getElementById('execSeeLink').addEventListener('click', ()=> openAnimModal(item.exName));
 }
 
-// ---- Navegación entre las 3 pantallas ----
-let currentView = 'checklist';
+// ---- Navegación entre pantallas ----
+const viewHome = document.getElementById('view-home');
+const masthead = document.getElementById('masthead');
+let currentView = 'home';
+let cameFromHome = false;
+
+function hideAllViews(){
+  viewHome.style.display = 'none';
+  viewChecklist.style.display = 'none';
+  viewExercises.style.display = 'none';
+  viewExecution.style.display = 'none';
+}
+
+function goHome(){
+  hideAllViews();
+  viewHome.style.display = 'block';
+  currentView = 'home';
+  continueBtn.style.visibility = 'hidden';
+  renderHome();
+  window.scrollTo(0,0);
+}
+
+function goToChecklistFromHome(){
+  hideAllViews();
+  viewChecklist.style.display = 'block';
+  currentView = 'checklist';
+  continueBtn.style.visibility = 'visible';
+  continueBtn.innerHTML = `Continuar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  window.scrollTo(0,0);
+}
+
+function startTodayFromHome(){
+  buildExecList();
+  if(execList.length === 0){
+    showToast('No hay nada programado todavía.');
+    return;
+  }
+  execIndex = 0;
+  cameFromHome = true;
+  renderExecCard();
+  hideAllViews();
+  viewExecution.style.display = 'block';
+  currentView = 'execution';
+  window.scrollTo(0,0);
+}
+
+function dayNameFor(subId){
+  const sub = SUB_INDEX[subId];
+  return sub ? sub.dayName : '';
+}
+
+async function renderHome(){
+  const homeToday = document.getElementById('homeToday');
+  const checkedEls = [...board.querySelectorAll('.sub.on')];
+  if(checkedEls.length > 0){
+    const items = checkedEls.map(el=>{
+      const sub = SUB_INDEX[el.dataset.sub];
+      return sub ? `${sub.muscleName} — ${sub.name}` : '';
+    }).filter(Boolean);
+    homeToday.innerHTML = `
+      <div class="today-card" id="todayCardBtn">
+        <p class="tc-kicker">Hoy</p>
+        <p class="tc-title">Tu próximo entreno está listo</p>
+        <p class="tc-list">${items.join('<br>')}</p>
+        <span class="tc-cta">Empezar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>`;
+    document.getElementById('todayCardBtn').addEventListener('click', startTodayFromHome);
+  } else {
+    homeToday.innerHTML = `
+      <div class="today-card" id="todayCardBtn">
+        <p class="tc-kicker">Hoy</p>
+        <p class="tc-title">Programa tu entreno</p>
+        <p class="tc-list">Elige qué vas a trabajar hoy.</p>
+        <span class="tc-cta">Programar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>`;
+    document.getElementById('todayCardBtn').addEventListener('click', goToChecklistFromHome);
+  }
+
+  const homeHistory = document.getElementById('homeHistory');
+  if(!currentUser){ homeHistory.innerHTML = ''; return; }
+  try{
+    const { data, error } = await sb.from('sesiones').select('*').eq('user_id', currentUser.id).order('fecha', { ascending:false }).limit(8);
+    if(error) throw error;
+    if(!data || data.length === 0){
+      homeHistory.innerHTML = `<p class="history-empty">Todavía no tienes entrenos completados.</p>`;
+      return;
+    }
+    homeHistory.innerHTML = data.map(s=>{
+      const d = new Date(s.fecha + 'T00:00:00');
+      const dateLabel = d.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'short' });
+      const muscles = [...new Set((s.resumen||[]).map(i=>i.muscleName))].join(', ');
+      return `<div class="history-card">
+        <p class="hc-date">${dateLabel}</p>
+        <p class="hc-day">${muscles || 'Entreno'}</p>
+        <p class="hc-list">${(s.resumen||[]).length} ejercicios</p>
+      </div>`;
+    }).join('');
+  }catch(e){
+    homeHistory.innerHTML = '';
+  }
+}
+
+async function finishSession(){
+  if(!currentUser || execList.length === 0) return;
+  const resumen = execList.map(i => ({ muscleName: i.muscleName, subName: i.subName, exName: i.exName }));
+  const fecha = new Date().toISOString().slice(0,10);
+  try{
+    await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen });
+  }catch(e){
+    // si falla el guardado del historial, no bloquea el flujo
+  }
+  board.querySelectorAll('.sub.on').forEach(el=> el.classList.remove('on'));
+  execList.forEach(i => { delete chosenExercise[i.subId]; });
+  await persistState(true);
+}
 
 function goToExercises(){
   const ok = renderExercisesView();
   if(!ok) return;
-  viewChecklist.style.display = 'none';
+  hideAllViews();
   viewExercises.style.display = 'block';
   currentView = 'exercises';
-  continueBtn.textContent = '';
   continueBtn.innerHTML = `Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   window.scrollTo(0,0);
 }
@@ -1238,25 +1453,31 @@ function goToExecution(){
     return;
   }
   execIndex = 0;
+  cameFromHome = false;
   renderExecCard();
-  viewExercises.style.display = 'none';
+  hideAllViews();
   viewExecution.style.display = 'block';
   currentView = 'execution';
   window.scrollTo(0,0);
 }
 
-continueBtn.addEventListener('click', ()=>{
+continueBtn.addEventListener('click', async ()=>{
   if(currentView === 'checklist') goToExercises();
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
     execIndex++;
+    if(execIndex >= execList.length){
+      await finishSession();
+    }
     renderExecCard();
     window.scrollTo(0,0);
   }
 });
 
+document.getElementById('homeBackBtn').addEventListener('click', goHome);
+
 document.getElementById('backBtn').addEventListener('click', ()=>{
-  viewExercises.style.display = 'none';
+  hideAllViews();
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
   continueBtn.style.visibility = 'visible';
@@ -1265,11 +1486,19 @@ document.getElementById('backBtn').addEventListener('click', ()=>{
 });
 
 document.getElementById('execBackBtn').addEventListener('click', ()=>{
-  viewExecution.style.display = 'none';
-  viewExercises.style.display = 'block';
-  currentView = 'exercises';
-  continueBtn.style.visibility = 'visible';
-  continueBtn.innerHTML = `Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  hideAllViews();
+  if(cameFromHome){
+    viewHome.style.display = 'block';
+    currentView = 'home';
+    continueBtn.style.visibility = 'hidden';
+    renderHome();
+  } else {
+    viewExercises.style.display = 'block';
+    currentView = 'exercises';
+    continueBtn.style.visibility = 'visible';
+    continueBtn.innerHTML = `Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+  cameFromHome = false;
   window.scrollTo(0,0);
 });
 
@@ -1353,8 +1582,40 @@ async function loadState(){
   }
 }
 
-document.getElementById('menuBtn').addEventListener('click', ()=>{
-  showToast('Menú próximamente.');
+const profileBtn = document.getElementById('profileBtn');
+const profileMenu = document.getElementById('profileMenu');
+const menuBtn = document.getElementById('menuBtn');
+const navMenu = document.getElementById('navMenu');
+
+function closeDropdowns(){
+  profileMenu.classList.remove('open');
+  navMenu.classList.remove('open');
+}
+
+profileBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const willOpen = !profileMenu.classList.contains('open');
+  closeDropdowns();
+  if(willOpen) profileMenu.classList.add('open');
+});
+
+menuBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const willOpen = !navMenu.classList.contains('open');
+  closeDropdowns();
+  if(willOpen) navMenu.classList.add('open');
+});
+
+document.addEventListener('click', closeDropdowns);
+
+document.getElementById('navHome').addEventListener('click', ()=>{
+  closeDropdowns();
+  goHome();
+});
+
+document.getElementById('navRutina').addEventListener('click', ()=>{
+  closeDropdowns();
+  goToChecklistFromHome();
 });
 
 // ---- Login / registro ----
@@ -1454,6 +1715,7 @@ async function onLoggedIn(user){
   currentUser = user;
   authGate.classList.add('hidden');
   await loadState();
+  goHome();
 }
 
 function onLoggedOut(){
