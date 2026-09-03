@@ -210,6 +210,10 @@
     padding:13px 20px;border-radius:12px;
   }
   .today-card .tc-cta svg{width:15px;height:15px;}
+  .change-routine{
+    text-align:center;font-size:12.5px;color:var(--text-dim);
+    text-decoration:underline;margin:14px 2px 0;cursor:pointer;
+  }
   .ex-topbar{
     display:flex;align-items:center;gap:12px;
     margin-bottom:24px;
@@ -613,7 +617,7 @@
   .dropdown-item:active{background:var(--panel-2);}
   .dropdown-item svg{width:16px;height:16px;color:var(--text-dim);flex-shrink:0;}
   #profileMenu{top:62px;right:18px;}
-  #navMenu{bottom:78px;left:14px;}
+  #navMenu{bottom:78px;left:50%;transform:translateX(-50%);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1371,21 +1375,56 @@ function dayNameFor(subId){
   return sub ? sub.dayName : '';
 }
 
+// La rutina rota sin parar entre los 3 días principales (Día 4 es aparte, opcional)
+async function getNextDayAccent(){
+  if(!currentUser) return 1;
+  try{
+    const { data, error } = await sb.from('sesiones')
+      .select('dia').eq('user_id', currentUser.id)
+      .order('created_at', { ascending:false }).limit(1);
+    if(error) throw error;
+    const last = data && data[0] ? data[0].dia : null;
+    if(!last) return 1;
+    return (last % 3) + 1;
+  }catch(e){
+    return 1;
+  }
+}
+
+function autoProgramDay(accent){
+  const dayObj = DAYS.find(d=>d.accent === accent) || DAYS[0];
+  board.querySelectorAll('.sub').forEach(el=>{
+    const sub = SUB_INDEX[el.dataset.sub];
+    if(sub && sub.dayName === dayObj.name) el.classList.add('on');
+  });
+  return dayObj;
+}
+
 async function renderHome(){
   const homeToday = document.getElementById('homeToday');
-  const checkedEls = [...board.querySelectorAll('.sub.on')];
-  if(checkedEls.length > 0){
-    const items = checkedEls.map(el=>{
-      const sub = SUB_INDEX[el.dataset.sub];
-      return sub ? `${sub.muscleName} — ${sub.name}` : '';
-    }).filter(Boolean);
+  let checkedEls = [...board.querySelectorAll('.sub.on')];
+
+  if(checkedEls.length === 0 && currentUser){
+    const nextAccent = await getNextDayAccent();
+    const dayObj = autoProgramDay(nextAccent);
+    checkedEls = [...board.querySelectorAll('.sub.on')];
+    autosave();
+  }
+
+  const items = checkedEls.map(el=>{
+    const sub = SUB_INDEX[el.dataset.sub];
+    return sub ? `${sub.muscleName} — ${sub.name}` : '';
+  }).filter(Boolean);
+
+  if(items.length > 0){
     homeToday.innerHTML = `
       <div class="today-card" id="todayCardBtn">
         <p class="tc-kicker">Hoy</p>
-        <p class="tc-title">Tu próximo entreno está listo</p>
+        <p class="tc-title">Lo que sigue de tu rutina</p>
         <p class="tc-list">${items.join('<br>')}</p>
-        <span class="tc-cta">Empezar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </div>`;
+        <span class="tc-cta">Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <p class="change-routine" id="changeRoutineBtn">Cambiar rutina</p>`;
     document.getElementById('todayCardBtn').addEventListener('click', startTodayFromHome);
   } else {
     homeToday.innerHTML = `
@@ -1393,10 +1432,13 @@ async function renderHome(){
         <p class="tc-kicker">Hoy</p>
         <p class="tc-title">Programa tu entreno</p>
         <p class="tc-list">Elige qué vas a trabajar hoy.</p>
-        <span class="tc-cta">Programar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="tc-cta">Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </div>`;
     document.getElementById('todayCardBtn').addEventListener('click', goToChecklistFromHome);
   }
+
+  const changeBtn = document.getElementById('changeRoutineBtn');
+  if(changeBtn) changeBtn.addEventListener('click', goToChecklistFromHome);
 
   const homeHistory = document.getElementById('homeHistory');
   if(!currentUser){ homeHistory.innerHTML = ''; return; }
@@ -1426,8 +1468,11 @@ async function finishSession(){
   if(!currentUser || execList.length === 0) return;
   const resumen = execList.map(i => ({ muscleName: i.muscleName, subName: i.subName, exName: i.exName }));
   const fecha = new Date().toISOString().slice(0,10);
+  const accentCounts = {};
+  execList.forEach(i => { accentCounts[i.accent] = (accentCounts[i.accent]||0) + 1; });
+  const dia = Object.keys(accentCounts).sort((a,b)=> accentCounts[b]-accentCounts[a])[0];
   try{
-    await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen });
+    await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen, dia: dia ? Number(dia) : null });
   }catch(e){
     // si falla el guardado del historial, no bloquea el flujo
   }
