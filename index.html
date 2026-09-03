@@ -23,6 +23,54 @@
     --extra:#C792EA;
     --extra-dim:#2A2033;
   }
+  body.theme-light{
+    --ink:#F5F5F2;
+    --panel:#FFFFFF;
+    --panel-2:#F0F0EE;
+    --line:#DDD9D0;
+    --text:#14161A;
+    --text-dim:#6B6F76;
+    --day1:#FF6B1A;
+    --day1-dim:#FFE3D1;
+    --day2:#16A34A;
+    --day2-dim:#DCFCE7;
+    --day3:#2563EB;
+    --day3-dim:#DBEAFE;
+    --extra:#9333EA;
+    --extra-dim:#F3E8FF;
+  }
+  body.theme-neon{
+    --ink:#0A0014;
+    --panel:#170526;
+    --panel-2:#22093A;
+    --line:#3E1361;
+    --text:#F5E1FF;
+    --text-dim:#B98FDB;
+    --day1:#FF2E9A;
+    --day1-dim:#3D0A2A;
+    --day2:#39FF14;
+    --day2-dim:#0A2E08;
+    --day3:#00E5FF;
+    --day3-dim:#032E33;
+    --extra:#FFEA00;
+    --extra-dim:#332C00;
+  }
+  body.theme-fire{
+    --ink:#1A0500;
+    --panel:#2B0D00;
+    --panel-2:#3D1400;
+    --line:#5C2200;
+    --text:#FFF3E0;
+    --text-dim:#E8A97A;
+    --day1:#FF5100;
+    --day1-dim:#4D1800;
+    --day2:#FFC400;
+    --day2-dim:#4D3900;
+    --day3:#FF0044;
+    --day3-dim:#4D0014;
+    --extra:#FF8A00;
+    --extra-dim:#4D2900;
+  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--ink);color:var(--text);font-family:'Archivo',sans-serif;}
   body{padding:28px 18px 80px;max-width:640px;margin:0 auto;}
@@ -596,6 +644,57 @@
     z-index:16;cursor:pointer;
   }
   #profileBtn svg{width:18px;height:18px;}
+  #themeBtn{
+    position:fixed;top:18px;right:66px;
+    width:38px;height:38px;
+    border-radius:50%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    z-index:16;cursor:pointer;
+  }
+  #themeBtn svg{width:18px;height:18px;}
+  .settings-overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.6);
+    z-index:40;
+    align-items:flex-end;justify-content:center;
+  }
+  .settings-overlay.open{display:flex;}
+  .settings-sheet{
+    width:100%;max-width:640px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:20px 20px 0 0;
+    padding:22px 20px 30px;
+  }
+  .settings-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .settings-head h3{font-size:17px;margin:0;}
+  .settings-section-title{
+    font-size:11.5px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.5px;
+    margin:0 0 12px;
+  }
+  .theme-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    margin-bottom:6px;
+  }
+  .theme-swatch{
+    border:2px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    cursor:pointer;
+    text-align:left;
+  }
+  .theme-swatch.active{border-color:var(--text);}
+  .theme-swatch .sw-dots{display:flex;gap:6px;margin-bottom:10px;}
+  .theme-swatch .sw-dot{width:16px;height:16px;border-radius:50%;}
+  .theme-swatch .sw-name{font-size:13.5px;font-weight:700;color:var(--text);}
   .dropdown{
     position:fixed;
     background:var(--panel);
@@ -662,10 +761,18 @@
     </div>
   </div>
 
+  <button id="themeBtn" aria-label="Cambiar colores">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.3" fill="currentColor"/><circle cx="14" cy="9" r="1.3" fill="currentColor"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/><circle cx="10" cy="15" r="1.3" fill="currentColor"/></svg>
+  </button>
+
   <button id="profileBtn" aria-label="Perfil">
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 20C4 16.6863 7.58172 14 12 14C16.4183 14 20 16.6863 20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
   </button>
   <div class="dropdown" id="profileMenu">
+    <div class="dropdown-item" id="settingsBtn">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      Configuración
+    </div>
     <div class="dropdown-item" id="logoutBtn">
       <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       Cerrar sesión
@@ -680,6 +787,19 @@
     <div class="dropdown-item" id="navRutina">
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 6H20M4 12H20M4 18H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       Rutina
+    </div>
+  </div>
+
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-sheet">
+      <div class="settings-head">
+        <h3>Configuración</h3>
+        <button class="modal-close" id="settingsClose" aria-label="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="settings-section-title">Colores de la app</p>
+      <div class="theme-grid" id="themeGrid"></div>
     </div>
   </div>
 
@@ -1612,7 +1732,9 @@ async function loadState(){
     const { data, error } = await sb.from('progreso').select('*').eq('user_id', currentUser.id);
     if(error) throw error;
     (data || []).forEach(row=>{
-      if(row.work_key.includes('::')){
+      if(row.work_key === '__theme__'){
+        applyTheme(row.series, true);
+      } else if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
         if(row.checked){
@@ -1661,6 +1783,73 @@ document.getElementById('navHome').addEventListener('click', ()=>{
 document.getElementById('navRutina').addEventListener('click', ()=>{
   closeDropdowns();
   goToChecklistFromHome();
+});
+
+// ---- Temas de color ----
+const THEMES = [
+  { id:'theme-dark',  name:'Original',  colors:['#0E1013','#FF8A3D','#33D17A','#4FA3FF'] },
+  { id:'theme-light', name:'Blanco',    colors:['#FFFFFF','#FF6B1A','#16A34A','#2563EB'] },
+  { id:'theme-neon',  name:'Neón',      colors:['#170526','#FF2E9A','#39FF14','#00E5FF'] },
+  { id:'theme-fire',  name:'Fuego',     colors:['#2B0D00','#FF5100','#FFC400','#FF0044'] },
+];
+let currentThemeId = 'theme-dark';
+
+function applyTheme(id, skipSave){
+  const found = THEMES.find(t=>t.id === id) ? id : 'theme-dark';
+  THEMES.forEach(t=> document.body.classList.remove(t.id));
+  if(found !== 'theme-dark') document.body.classList.add(found);
+  currentThemeId = found;
+  renderThemeGrid();
+  if(!skipSave) saveThemePref();
+}
+
+function nextTheme(){
+  const idx = THEMES.findIndex(t=>t.id === currentThemeId);
+  const next = THEMES[(idx + 1) % THEMES.length];
+  applyTheme(next.id);
+  showToast(`Tema: ${next.name}`);
+}
+
+function renderThemeGrid(){
+  const grid = document.getElementById('themeGrid');
+  if(!grid) return;
+  grid.innerHTML = THEMES.map(t=>`
+    <div class="theme-swatch ${t.id === currentThemeId ? 'active':''}" data-theme="${t.id}">
+      <div class="sw-dots">
+        ${t.colors.map(c=>`<span class="sw-dot" style="background:${c};border:1px solid rgba(255,255,255,.15);"></span>`).join('')}
+      </div>
+      <p class="sw-name">${t.name}</p>
+    </div>`).join('');
+  grid.querySelectorAll('.theme-swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=> applyTheme(sw.dataset.theme));
+  });
+}
+
+async function saveThemePref(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__theme__', series: currentThemeId },
+      { onConflict: 'user_id,work_key' }
+    );
+  }catch(e){
+    // si falla, el tema igual se aplica visualmente, solo no persiste
+  }
+}
+
+document.getElementById('themeBtn').addEventListener('click', nextTheme);
+
+const settingsOverlay = document.getElementById('settingsOverlay');
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  closeDropdowns();
+  renderThemeGrid();
+  settingsOverlay.classList.add('open');
+});
+document.getElementById('settingsClose').addEventListener('click', ()=>{
+  settingsOverlay.classList.remove('open');
+});
+settingsOverlay.addEventListener('click', (e)=>{
+  if(e.target === settingsOverlay) settingsOverlay.classList.remove('open');
 });
 
 // ---- Login / registro ----
