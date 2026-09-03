@@ -503,6 +503,19 @@
     font-size:15px;
     padding:13px 14px;
   }
+  .pass-wrap{position:relative;}
+  .pass-wrap input{padding-right:44px;}
+  .pass-toggle{
+    position:absolute;
+    right:6px;top:50%;
+    transform:translateY(-50%);
+    width:32px;height:32px;
+    border:none;background:transparent;
+    color:var(--text-dim);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .pass-toggle svg{width:19px;height:19px;}
   .auth-btn{
     width:100%;
     background:var(--text);
@@ -550,11 +563,21 @@
       </div>
       <div class="auth-field">
         <label>Contraseña</label>
-        <input type="password" id="authPass" autocomplete="current-password">
+        <div class="pass-wrap">
+          <input type="password" id="authPass" autocomplete="current-password">
+          <button type="button" class="pass-toggle" data-target="authPass">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M2 12C2 12 5.5 5 12 5C18.5 5 22 12 22 12C22 12 18.5 19 12 19C5.5 19 2 12 2 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+          </button>
+        </div>
       </div>
       <div class="auth-field" id="authPass2Field" style="display:none;">
         <label>Confirmar contraseña</label>
-        <input type="password" id="authPass2" autocomplete="new-password">
+        <div class="pass-wrap">
+          <input type="password" id="authPass2" autocomplete="new-password">
+          <button type="button" class="pass-toggle" data-target="authPass2">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M2 12C2 12 5.5 5 12 5C18.5 5 22 12 22 12C22 12 18.5 19 12 19C5.5 19 2 12 2 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+          </button>
+        </div>
       </div>
       <button class="auth-btn" id="authSubmit">Entrar</button>
       <p class="auth-switch">¿No tienes cuenta? <span id="authSwitch">Crear una</span></p>
@@ -1350,6 +1373,13 @@ function setAuthMsg(msg, isError){
 }
 
 const authPass2Field = document.getElementById('authPass2Field');
+
+document.querySelectorAll('.pass-toggle').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const input = document.getElementById(btn.dataset.target);
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+});
 const authPass2 = document.getElementById('authPass2');
 
 authSwitch.addEventListener('click', ()=>{
