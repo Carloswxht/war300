@@ -728,6 +728,17 @@
     width:36px;height:36px;border:none;border-radius:8px;
     background:none;padding:0;cursor:pointer;
   }
+  .advanced-toggle{
+    font-size:12.5px;color:var(--text-dim);
+    text-decoration:underline;cursor:pointer;
+    margin:14px 2px 0;
+  }
+  .advanced-panel{display:none;margin-top:6px;}
+  .advanced-panel.open{display:block;}
+  .advanced-hint{
+    font-size:11.5px;color:var(--text-dim);
+    line-height:1.5;margin:10px 2px 0;font-style:italic;
+  }
   .custom-name-input{
     width:100%;margin-top:14px;
     background:var(--panel-2);
@@ -873,6 +884,32 @@
           <label>Día 4 (Extra)</label>
           <input type="color" id="cDay4" value="#C792EA">
         </div>
+
+        <p class="advanced-toggle" id="advancedToggle">Personalizar detalles ▾</p>
+        <div class="advanced-panel" id="advancedPanel">
+          <div class="picker-row">
+            <label>Tarjetas (panel)</label>
+            <input type="color" id="cPanel" value="#181B20">
+          </div>
+          <div class="picker-row">
+            <label>Detalles internos (panel 2)</label>
+            <input type="color" id="cPanel2" value="#1F2329">
+          </div>
+          <div class="picker-row">
+            <label>Líneas y bordes</label>
+            <input type="color" id="cLine" value="#2B3038">
+          </div>
+          <div class="picker-row">
+            <label>Texto principal</label>
+            <input type="color" id="cText" value="#F2F1EC">
+          </div>
+          <div class="picker-row">
+            <label>Texto secundario</label>
+            <input type="color" id="cTextDim" value="#9AA0AA">
+          </div>
+          <p class="advanced-hint">Estos ya vienen calculados a partir del fondo — cámbialos solo si quieres afinarlos a mano.</p>
+        </div>
+
         <input type="text" class="custom-name-input" id="customName" placeholder="Nombre de tu paleta">
         <button class="save-custom-btn" id="saveCustomBtn">Guardar paleta</button>
       </div>
@@ -1907,15 +1944,16 @@ function blend(hex1, hex2, t){
   const a = hexToRgb(hex1), b = hexToRgb(hex2);
   return rgbToHex(a.r + (b.r-a.r)*t, a.g + (b.g-a.g)*t, a.b + (b.b-a.b)*t);
 }
-function deriveThemeVars(ink, day1, day2, day3, day4){
+function deriveThemeVars(ink, day1, day2, day3, day4, overrides){
   const isDark = relLuma(ink) < 0.5;
+  const ov = overrides || {};
   return {
     '--ink': ink,
-    '--panel': shade(ink, isDark ? 0.06 : -0.04),
-    '--panel-2': shade(ink, isDark ? 0.11 : -0.08),
-    '--line': shade(ink, isDark ? 0.18 : -0.16),
-    '--text': isDark ? '#F2F1EC' : '#14161A',
-    '--text-dim': isDark ? '#9AA0AA' : '#6B6F76',
+    '--panel': ov.panel || shade(ink, isDark ? 0.06 : -0.04),
+    '--panel-2': ov.panel2 || shade(ink, isDark ? 0.11 : -0.08),
+    '--line': ov.line || shade(ink, isDark ? 0.18 : -0.16),
+    '--text': ov.text || (isDark ? '#F2F1EC' : '#14161A'),
+    '--text-dim': ov.textDim || (isDark ? '#9AA0AA' : '#6B6F76'),
     '--day1': day1, '--day1-dim': blend(day1, ink, 0.78),
     '--day2': day2, '--day2-dim': blend(day2, ink, 0.78),
     '--day3': day3, '--day3-dim': blend(day3, ink, 0.78),
@@ -1940,7 +1978,7 @@ function applyTheme(id, skipSave){
 
 function applyCustomTheme(custom, skipSave){
   THEMES.forEach(t=> document.body.classList.remove(t.id));
-  const vars = deriveThemeVars(custom.ink, custom.day1, custom.day2, custom.day3, custom.day4);
+  const vars = deriveThemeVars(custom.ink, custom.day1, custom.day2, custom.day3, custom.day4, custom);
   Object.entries(vars).forEach(([k,v]) => document.body.style.setProperty(k, v));
   currentThemeId = 'custom:' + custom.id;
   renderThemeGrid();
@@ -2065,8 +2103,38 @@ document.getElementById('personalizeBtn').addEventListener('click', ()=>{
   customBuilder.classList.toggle('open');
 });
 
+const advancedToggle = document.getElementById('advancedToggle');
+const advancedPanel = document.getElementById('advancedPanel');
+let advancedTouched = false;
+
+function refreshAdvancedDefaults(){
+  const ink = document.getElementById('cFondo').value;
+  const isDark = relLuma(ink) < 0.5;
+  document.getElementById('cPanel').value = shade(ink, isDark ? 0.06 : -0.04);
+  document.getElementById('cPanel2').value = shade(ink, isDark ? 0.11 : -0.08);
+  document.getElementById('cLine').value = shade(ink, isDark ? 0.18 : -0.16);
+  document.getElementById('cText').value = isDark ? '#F2F1EC' : '#14161A';
+  document.getElementById('cTextDim').value = isDark ? '#9AA0AA' : '#6B6F76';
+}
+
+advancedToggle.addEventListener('click', ()=>{
+  const opening = !advancedPanel.classList.contains('open');
+  advancedPanel.classList.toggle('open');
+  advancedToggle.textContent = opening ? 'Personalizar detalles ▴' : 'Personalizar detalles ▾';
+  if(opening && !advancedTouched) refreshAdvancedDefaults();
+});
+
+document.getElementById('cFondo').addEventListener('input', ()=>{
+  if(!advancedTouched) refreshAdvancedDefaults();
+});
+
+['cPanel','cPanel2','cLine','cText','cTextDim'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{ advancedTouched = true; });
+});
+
 document.getElementById('saveCustomBtn').addEventListener('click', ()=>{
   const name = document.getElementById('customName').value.trim() || `Paleta ${customThemes.length + 1}`;
+  if(!advancedTouched) refreshAdvancedDefaults();
   const custom = {
     id: 'c' + Date.now(),
     name,
@@ -2075,12 +2143,20 @@ document.getElementById('saveCustomBtn').addEventListener('click', ()=>{
     day2: document.getElementById('cDay2').value,
     day3: document.getElementById('cDay3').value,
     day4: document.getElementById('cDay4').value,
+    panel: document.getElementById('cPanel').value,
+    panel2: document.getElementById('cPanel2').value,
+    line: document.getElementById('cLine').value,
+    text: document.getElementById('cText').value,
+    textDim: document.getElementById('cTextDim').value,
   };
   customThemes.push(custom);
   saveCustomThemesList();
   applyCustomTheme(custom);
   document.getElementById('customName').value = '';
   customBuilder.classList.remove('open');
+  advancedPanel.classList.remove('open');
+  advancedToggle.textContent = 'Personalizar detalles ▾';
+  advancedTouched = false;
   showToast('Paleta guardada.');
 });
 
