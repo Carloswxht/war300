@@ -695,6 +695,55 @@
   .theme-swatch .sw-dots{display:flex;gap:6px;margin-bottom:10px;}
   .theme-swatch .sw-dot{width:16px;height:16px;border-radius:50%;}
   .theme-swatch .sw-name{font-size:13.5px;font-weight:700;color:var(--text);}
+  .theme-swatch{position:relative;}
+  .swatch-del{
+    position:absolute;top:8px;right:8px;
+    width:22px;height:22px;border-radius:7px;
+    background:var(--panel-2);border:1px solid var(--line);
+    color:var(--text-dim);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .swatch-del svg{width:11px;height:11px;}
+
+  .personalize-btn{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:'Archivo',sans-serif;
+    font-weight:700;font-size:14px;
+    padding:13px;border-radius:12px;
+    cursor:pointer;
+    margin:14px 0 4px;
+  }
+  .custom-builder{display:none;margin-top:16px;}
+  .custom-builder.open{display:block;}
+  .picker-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 2px;
+    border-bottom:1px solid var(--line);
+  }
+  .picker-row label{font-size:13.5px;color:var(--text);}
+  .picker-row input[type="color"]{
+    width:36px;height:36px;border:none;border-radius:8px;
+    background:none;padding:0;cursor:pointer;
+  }
+  .custom-name-input{
+    width:100%;margin-top:14px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'Archivo',sans-serif;
+    font-size:14px;
+    padding:12px 14px;
+  }
+  .save-custom-btn{
+    width:100%;margin-top:10px;
+    background:var(--text);color:var(--ink);
+    border:none;font-weight:700;font-size:14px;
+    padding:14px;border-radius:12px;cursor:pointer;
+  }
   .dropdown{
     position:fixed;
     background:var(--panel);
@@ -800,6 +849,35 @@
       </div>
       <p class="settings-section-title">Colores de la app</p>
       <div class="theme-grid" id="themeGrid"></div>
+
+      <button class="personalize-btn" id="personalizeBtn">Personalizar</button>
+
+      <div class="custom-builder" id="customBuilder">
+        <div class="picker-row">
+          <label>Fondo</label>
+          <input type="color" id="cFondo" value="#0E1013">
+        </div>
+        <div class="picker-row">
+          <label>Día 1 (Empuje)</label>
+          <input type="color" id="cDay1" value="#FF8A3D">
+        </div>
+        <div class="picker-row">
+          <label>Día 2 (Pierna)</label>
+          <input type="color" id="cDay2" value="#33D17A">
+        </div>
+        <div class="picker-row">
+          <label>Día 3 (Tirón)</label>
+          <input type="color" id="cDay3" value="#4FA3FF">
+        </div>
+        <div class="picker-row">
+          <label>Día 4 (Extra)</label>
+          <input type="color" id="cDay4" value="#C792EA">
+        </div>
+        <input type="text" class="custom-name-input" id="customName" placeholder="Nombre de tu paleta">
+        <button class="save-custom-btn" id="saveCustomBtn">Guardar paleta</button>
+      </div>
+
+      <div id="customThemesWrap"></div>
     </div>
   </div>
 
@@ -1731,9 +1809,12 @@ async function loadState(){
   try{
     const { data, error } = await sb.from('progreso').select('*').eq('user_id', currentUser.id);
     if(error) throw error;
+    let themeRaw = null;
     (data || []).forEach(row=>{
       if(row.work_key === '__theme__'){
-        applyTheme(row.series, true);
+        themeRaw = row.series;
+      } else if(row.work_key === '__custom_themes__'){
+        try{ customThemes = JSON.parse(row.reps || '[]'); }catch(e){ customThemes = []; }
       } else if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
@@ -1744,6 +1825,13 @@ async function loadState(){
         if(row.ejercicio_elegido) chosenExercise[row.work_key] = row.ejercicio_elegido;
       }
     });
+    if(themeRaw && themeRaw.startsWith('custom:')){
+      const custom = customThemes.find(c => 'custom:'+c.id === themeRaw);
+      if(custom) applyCustomTheme(custom, true);
+      else applyTheme('theme-dark', true);
+    } else if(themeRaw){
+      applyTheme(themeRaw, true);
+    }
   }catch(e){
     showToast('No se pudo cargar tu progreso.');
   }
@@ -1792,19 +1880,81 @@ const THEMES = [
   { id:'theme-neon',  name:'Neón',      colors:['#170526','#FF2E9A','#39FF14','#00E5FF'] },
   { id:'theme-fire',  name:'Fuego',     colors:['#2B0D00','#FF5100','#FFC400','#FF0044'] },
 ];
+const ALL_THEME_VARS = ['--ink','--panel','--panel-2','--line','--text','--text-dim','--day1','--day1-dim','--day2','--day2-dim','--day3','--day3-dim','--extra','--extra-dim'];
 let currentThemeId = 'theme-dark';
+let customThemes = []; // [{id, name, ink, day1, day2, day3, day4}]
+
+// -- utilidades de color --
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  return { r: parseInt(h.substr(0,2),16), g: parseInt(h.substr(2,2),16), b: parseInt(h.substr(4,2),16) };
+}
+function rgbToHex(r,g,b){
+  return '#' + [r,g,b].map(v=> Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function relLuma(hex){
+  const {r,g,b} = hexToRgb(hex);
+  return (0.299*r + 0.587*g + 0.114*b) / 255;
+}
+function shade(hex, amt){
+  const {r,g,b} = hexToRgb(hex);
+  const f = amt >= 0 ? (255 - Math.max(r,g,b)) : Math.min(r,g,b);
+  const t = amt >= 0 ? 255 : 0;
+  const p = Math.abs(amt);
+  return rgbToHex(r + (t-r)*p, g + (t-g)*p, b + (t-b)*p);
+}
+function blend(hex1, hex2, t){
+  const a = hexToRgb(hex1), b = hexToRgb(hex2);
+  return rgbToHex(a.r + (b.r-a.r)*t, a.g + (b.g-a.g)*t, a.b + (b.b-a.b)*t);
+}
+function deriveThemeVars(ink, day1, day2, day3, day4){
+  const isDark = relLuma(ink) < 0.5;
+  return {
+    '--ink': ink,
+    '--panel': shade(ink, isDark ? 0.06 : -0.04),
+    '--panel-2': shade(ink, isDark ? 0.11 : -0.08),
+    '--line': shade(ink, isDark ? 0.18 : -0.16),
+    '--text': isDark ? '#F2F1EC' : '#14161A',
+    '--text-dim': isDark ? '#9AA0AA' : '#6B6F76',
+    '--day1': day1, '--day1-dim': blend(day1, ink, 0.78),
+    '--day2': day2, '--day2-dim': blend(day2, ink, 0.78),
+    '--day3': day3, '--day3-dim': blend(day3, ink, 0.78),
+    '--extra': day4, '--extra-dim': blend(day4, ink, 0.78),
+  };
+}
+
+function clearInlineTheme(){
+  ALL_THEME_VARS.forEach(v => document.body.style.removeProperty(v));
+}
 
 function applyTheme(id, skipSave){
+  clearInlineTheme();
   const found = THEMES.find(t=>t.id === id) ? id : 'theme-dark';
   THEMES.forEach(t=> document.body.classList.remove(t.id));
   if(found !== 'theme-dark') document.body.classList.add(found);
   currentThemeId = found;
   renderThemeGrid();
+  renderCustomGrid();
+  if(!skipSave) saveThemePref();
+}
+
+function applyCustomTheme(custom, skipSave){
+  THEMES.forEach(t=> document.body.classList.remove(t.id));
+  const vars = deriveThemeVars(custom.ink, custom.day1, custom.day2, custom.day3, custom.day4);
+  Object.entries(vars).forEach(([k,v]) => document.body.style.setProperty(k, v));
+  currentThemeId = 'custom:' + custom.id;
+  renderThemeGrid();
+  renderCustomGrid();
   if(!skipSave) saveThemePref();
 }
 
 function nextTheme(){
   const idx = THEMES.findIndex(t=>t.id === currentThemeId);
+  if(idx === -1){
+    applyTheme('theme-dark');
+    showToast('Tema: Original');
+    return;
+  }
   const next = THEMES[(idx + 1) % THEMES.length];
   applyTheme(next.id);
   showToast(`Tema: ${next.name}`);
@@ -1825,6 +1975,42 @@ function renderThemeGrid(){
   });
 }
 
+function renderCustomGrid(){
+  const wrap = document.getElementById('customThemesWrap');
+  if(!wrap) return;
+  if(customThemes.length === 0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <p class="settings-section-title" style="margin-top:18px;">Tus paletas</p>
+    <div class="theme-grid" id="customGrid"></div>`;
+  const grid = document.getElementById('customGrid');
+  grid.innerHTML = customThemes.map(c=>`
+    <div class="theme-swatch ${currentThemeId === 'custom:'+c.id ? 'active':''}" data-custom="${c.id}">
+      <button class="swatch-del" data-del="${c.id}" aria-label="Borrar">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="sw-dots">
+        <span class="sw-dot" style="background:${c.ink};border:1px solid rgba(255,255,255,.15);"></span>
+        <span class="sw-dot" style="background:${c.day1};"></span>
+        <span class="sw-dot" style="background:${c.day2};"></span>
+        <span class="sw-dot" style="background:${c.day3};"></span>
+      </div>
+      <p class="sw-name">${c.name}</p>
+    </div>`).join('');
+  grid.querySelectorAll('.theme-swatch').forEach(sw=>{
+    sw.addEventListener('click', (e)=>{
+      if(e.target.closest('.swatch-del')) return;
+      const c = customThemes.find(x=>x.id === sw.dataset.custom);
+      if(c) applyCustomTheme(c);
+    });
+  });
+  grid.querySelectorAll('.swatch-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      deleteCustomTheme(btn.dataset.del);
+    });
+  });
+}
+
 async function saveThemePref(){
   if(!currentUser) return;
   try{
@@ -1837,12 +2023,34 @@ async function saveThemePref(){
   }
 }
 
+async function saveCustomThemesList(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__custom_themes__', reps: JSON.stringify(customThemes) },
+      { onConflict: 'user_id,work_key' }
+    );
+  }catch(e){
+    showToast('No se pudo guardar tu paleta.');
+  }
+}
+
+function deleteCustomTheme(id){
+  const wasActive = currentThemeId === 'custom:' + id;
+  customThemes = customThemes.filter(c => c.id !== id);
+  saveCustomThemesList();
+  if(wasActive) applyTheme('theme-dark');
+  else renderCustomGrid();
+  showToast('Paleta borrada.');
+}
+
 document.getElementById('themeBtn').addEventListener('click', nextTheme);
 
 const settingsOverlay = document.getElementById('settingsOverlay');
 document.getElementById('settingsBtn').addEventListener('click', ()=>{
   closeDropdowns();
   renderThemeGrid();
+  renderCustomGrid();
   settingsOverlay.classList.add('open');
 });
 document.getElementById('settingsClose').addEventListener('click', ()=>{
@@ -1850,6 +2058,30 @@ document.getElementById('settingsClose').addEventListener('click', ()=>{
 });
 settingsOverlay.addEventListener('click', (e)=>{
   if(e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+
+const customBuilder = document.getElementById('customBuilder');
+document.getElementById('personalizeBtn').addEventListener('click', ()=>{
+  customBuilder.classList.toggle('open');
+});
+
+document.getElementById('saveCustomBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('customName').value.trim() || `Paleta ${customThemes.length + 1}`;
+  const custom = {
+    id: 'c' + Date.now(),
+    name,
+    ink: document.getElementById('cFondo').value,
+    day1: document.getElementById('cDay1').value,
+    day2: document.getElementById('cDay2').value,
+    day3: document.getElementById('cDay3').value,
+    day4: document.getElementById('cDay4').value,
+  };
+  customThemes.push(custom);
+  saveCustomThemesList();
+  applyCustomTheme(custom);
+  document.getElementById('customName').value = '';
+  customBuilder.classList.remove('open');
+  showToast('Paleta guardada.');
 });
 
 // ---- Login / registro ----
