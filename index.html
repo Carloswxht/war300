@@ -1850,8 +1850,15 @@ function renderExecCard(){
   const workKey = item.subId + '::' + item.exName;
   const saved = workData[workKey] || {};
   const pesoVal = saved.peso != null ? Number(saved.peso) : guide.peso;
-  const seriesVal = saved.series != null ? saved.series : guide.series;
-  const repsVal = saved.reps != null ? saved.reps : guide.reps;
+  // Series y reps ahora son números simples (deslizables), no texto libre.
+  // Si lo guardado o la guía viene como rango ("6-10"), se toma el primer
+  // número como punto de partida.
+  const firstNum = (val, fallback)=>{
+    const m = String(val == null ? '' : val).match(/\d+/);
+    return m ? parseInt(m[0], 10) : fallback;
+  };
+  const seriesVal = firstNum(saved.series != null ? saved.series : guide.series, 3);
+  const repsVal = firstNum(saved.reps != null ? saved.reps : guide.reps, 10);
   const step = guide.step || 1;
   execProgress.textContent = `${execIndex + 1} / ${execList.length}`;
   const isLast = execIndex === execList.length - 1;
@@ -1874,11 +1881,19 @@ function renderExecCard(){
         </div>
         <div class="exec-field">
           <label>Series</label>
-          <input type="text" inputmode="numeric" pattern="[0-9]*" id="execSeries" value="${seriesVal}">
+          <div class="peso-slider" id="seriesSlider">
+            <svg class="ps-arrow" viewBox="0 0 24 24" fill="none"><path d="M6 15L12 9L18 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="stepper-val" id="execSeries">${seriesVal}</span>
+            <svg class="ps-arrow" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
         </div>
         <div class="exec-field">
           <label>Repeticiones</label>
-          <input type="text" inputmode="numeric" pattern="[0-9]*" id="execReps" value="${repsVal}">
+          <div class="peso-slider" id="repsSlider">
+            <svg class="ps-arrow" viewBox="0 0 24 24" fill="none"><path d="M6 15L12 9L18 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="stepper-val" id="execReps">${repsVal}</span>
+            <svg class="ps-arrow" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
         </div>
       </div>
       <div class="exec-badge">${guide.type}</div>
@@ -1903,9 +1918,11 @@ function renderExecCard(){
   loadExerciseProgress(item.exName, execIndex);
 
   let pesoNow = pesoVal;
+  let seriesNow = seriesVal;
+  let repsNow = repsVal;
   const pesoDisplay = document.getElementById('execPeso');
-  const seriesInput = document.getElementById('execSeries');
-  const repsInput = document.getElementById('execReps');
+  const seriesDisplay = document.getElementById('execSeries');
+  const repsDisplay = document.getElementById('execReps');
   function checkRecord(newPeso){
     const baseline = prSnapshot[workKey];
     if(baseline != null && newPeso > baseline && !prsHitThisSession[workKey]){
@@ -1917,27 +1934,30 @@ function renderExecCard(){
   // repeticiones — no espera a que toques "Continuar". Ese botón, además,
   // hace un guardado final de respaldo por si acaso (ver commitCurrentCard).
   function saveNow(){
-    workData[workKey] = { peso: pesoNow, series: seriesInput.value, reps: repsInput.value };
+    workData[workKey] = { peso: pesoNow, series: String(seriesNow), reps: String(repsNow) };
     persistState(true);
   }
   commitCurrentCard = function(){
-    const inp = pesoDisplay.querySelector('input');
-    if(inp){
-      let val = parseFloat(String(inp.value || '').replace(',', '.'));
-      if(!isNaN(val) && val >= 0) pesoNow = Math.round(val * 100) / 100;
-    }
+    // Por si queda algún campo a medio editar (raro, pero por si acaso):
+    // el navegador dispara "blur" solo al perder el foco, así que si el
+    // usuario toca "Continuar" sin que eso alcance a pasar, forzamos el
+    // blur aquí para no perder lo que estaba escribiendo.
+    [pesoDisplay, seriesDisplay, repsDisplay].forEach(el=>{
+      const inp = el.querySelector('input');
+      if(inp) inp.blur();
+    });
     saveNow();
     checkRecord(pesoNow);
   };
-  // Toca el número para escribirlo directo, o desliza el dedo hacia
-  // arriba/abajo sobre toda la zona para subir/bajar de a "step" en "step"
-  // (más área táctil que un botón chico — evita el problema de fallar el
-  // toque con los dedos).
-  function openPesoEditor(){
-    if(pesoDisplay.querySelector('input')) return;
-    const current = pesoNow;
-    pesoDisplay.innerHTML = `<input type="text" inputmode="decimal" class="stepper-input" id="pesoInlineInput" value="${current}">`;
-    const inp = document.getElementById('pesoInlineInput');
+
+  // Toca un número para escribirlo directo, o desliza el dedo hacia
+  // arriba/abajo sobre toda la zona para subir/bajar (más área táctil que
+  // un botón chico — evita fallar el toque con los dedos). Mismo patrón
+  // para peso, series y repeticiones.
+  function openInlineEditor(displayEl, current, allowDecimals, onCommit){
+    if(displayEl.querySelector('input')) return;
+    displayEl.innerHTML = `<input type="text" inputmode="${allowDecimals ? 'decimal' : 'numeric'}" class="stepper-input" value="${current}">`;
+    const inp = displayEl.querySelector('input');
     inp.focus();
     inp.select();
     let committed = false;
@@ -1946,58 +1966,85 @@ function renderExecCard(){
       committed = true;
       let val = parseFloat(String(inp.value || '').replace(',', '.'));
       if(isNaN(val) || val < 0) val = current;
-      val = Math.round(val * 100) / 100;
-      pesoNow = val;
-      pesoDisplay.textContent = pesoNow;
-      saveNow();
-      checkRecord(pesoNow);
+      val = allowDecimals ? Math.round(val * 100) / 100 : Math.round(val);
+      onCommit(val);
     }
     inp.addEventListener('blur', commit);
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
     });
   }
-  seriesInput.addEventListener('change', saveNow);
-  repsInput.addEventListener('change', saveNow);
 
-  const pesoSlider = document.getElementById('pesoSlider');
   const DRAG_PX_PER_STEP = 12; // píxeles de arrastre por cada "step" de cambio
   const DRAG_THRESHOLD = 6;    // por debajo de esto se considera un toque, no un arrastre
-  let dragStartY = null, dragStartPeso = null, dragMoved = false;
-  pesoSlider.addEventListener('pointerdown', (e)=>{
-    if(pesoDisplay.querySelector('input')) return;
-    dragStartY = e.clientY;
-    dragStartPeso = pesoNow;
-    dragMoved = false;
-    pesoSlider.setPointerCapture(e.pointerId);
-  });
-  pesoSlider.addEventListener('pointermove', (e)=>{
-    if(dragStartY === null) return;
-    const deltaY = dragStartY - e.clientY; // positivo = dedo subió = peso sube
-    if(Math.abs(deltaY) > DRAG_THRESHOLD) dragMoved = true;
-    if(!dragMoved) return;
-    const steps = Math.round(deltaY / DRAG_PX_PER_STEP);
-    let val = dragStartPeso + steps * step;
-    val = Math.max(0, Math.round(val * 100) / 100);
-    if(val !== pesoNow){
+  function makeDragField(sliderId, displayEl, getVal, stepVal, minVal, onChanged, onTapEdit){
+    const sliderEl = document.getElementById(sliderId);
+    let startY = null, startVal = null, moved = false;
+    sliderEl.addEventListener('pointerdown', (e)=>{
+      if(displayEl.querySelector('input')) return;
+      startY = e.clientY;
+      startVal = getVal();
+      moved = false;
+      sliderEl.setPointerCapture(e.pointerId);
+    });
+    sliderEl.addEventListener('pointermove', (e)=>{
+      if(startY === null) return;
+      const deltaY = startY - e.clientY; // positivo = dedo subió = valor sube
+      if(Math.abs(deltaY) > DRAG_THRESHOLD) moved = true;
+      if(!moved) return;
+      const steps = Math.round(deltaY / DRAG_PX_PER_STEP);
+      let val = startVal + steps * stepVal;
+      val = Math.max(minVal, val);
+      if(val !== getVal()) onChanged(val, false);
+    });
+    function end(){
+      if(startY === null) return;
+      const wasDrag = moved;
+      startY = null; moved = false;
+      if(wasDrag) onChanged(getVal(), true);
+      else onTapEdit();
+    }
+    sliderEl.addEventListener('pointerup', end);
+    sliderEl.addEventListener('pointercancel', end);
+  }
+
+  makeDragField('pesoSlider', pesoDisplay, ()=>pesoNow, step, 0,
+    (val, commit)=>{
       pesoNow = val;
       pesoDisplay.textContent = pesoNow;
-    }
-  });
-  function endPesoDrag(){
-    if(dragStartY === null) return;
-    const wasDrag = dragMoved;
-    dragStartY = null;
-    dragMoved = false;
-    if(wasDrag){
+      if(commit){ saveNow(); checkRecord(pesoNow); }
+    },
+    ()=> openInlineEditor(pesoDisplay, pesoNow, true, (val)=>{
+      pesoNow = val;
+      pesoDisplay.textContent = pesoNow;
       saveNow();
       checkRecord(pesoNow);
-    } else {
-      openPesoEditor();
-    }
-  }
-  pesoSlider.addEventListener('pointerup', endPesoDrag);
-  pesoSlider.addEventListener('pointercancel', endPesoDrag);
+    })
+  );
+  makeDragField('seriesSlider', seriesDisplay, ()=>seriesNow, 1, 1,
+    (val, commit)=>{
+      seriesNow = val;
+      seriesDisplay.textContent = seriesNow;
+      if(commit) saveNow();
+    },
+    ()=> openInlineEditor(seriesDisplay, seriesNow, false, (val)=>{
+      seriesNow = Math.max(1, val);
+      seriesDisplay.textContent = seriesNow;
+      saveNow();
+    })
+  );
+  makeDragField('repsSlider', repsDisplay, ()=>repsNow, 2, 1,
+    (val, commit)=>{
+      repsNow = val;
+      repsDisplay.textContent = repsNow;
+      if(commit) saveNow();
+    },
+    ()=> openInlineEditor(repsDisplay, repsNow, false, (val)=>{
+      repsNow = Math.max(1, val);
+      repsDisplay.textContent = repsNow;
+      saveNow();
+    })
+  );
 
   execCard.querySelectorAll('.ex-option').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
