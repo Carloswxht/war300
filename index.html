@@ -407,37 +407,17 @@
   }
   .today-card .tc-cta svg{width:15px;height:15px;}
 
-  .store-card{
-    position:relative;
-    margin-top:14px;
-    background:linear-gradient(155deg, var(--panel) 0%, var(--ink) 100%);
-    border:1px solid var(--day1);
-    border-radius:18px;
-    padding:22px 24px;
-    cursor:pointer;
-    overflow:hidden;
-    isolation:isolate;
+  .store-fab{
+    position:fixed;right:18px;bottom:calc(64px + 18px + env(safe-area-inset-bottom));
+    width:52px;height:52px;border-radius:50%;
+    background:var(--day1);color:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    border:none;cursor:pointer;
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
+    z-index:20;
   }
-  .store-card-glow{
-    position:absolute;top:-40%;right:-20%;
-    width:220px;height:220px;border-radius:50%;
-    background:radial-gradient(circle, var(--day1) 0%, transparent 70%);
-    opacity:.25;
-    z-index:-1;
-    pointer-events:none;
-  }
-  .store-card .sc-kicker{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:10.5px;color:var(--day1);
-    text-transform:uppercase;letter-spacing:1.2px;margin:0 0 8px;
-  }
-  .store-card .sc-title{font-family:'Archivo Black',sans-serif;font-size:19px;margin:0 0 6px;color:var(--text);}
-  .store-card .sc-sub{font-size:12.5px;color:var(--text-dim);margin:0 0 16px;line-height:1.4;}
-  .store-card .sc-cta{
-    display:inline-flex;align-items:center;gap:7px;
-    font-weight:700;font-size:13px;color:var(--day1);
-  }
-  .store-card .sc-cta svg{width:14px;height:14px;}
+  .store-fab svg{width:24px;height:24px;}
+  .store-fab:active{transform:scale(.94);}
 
   #view-store{
     position:fixed;inset:0;
@@ -1201,13 +1181,6 @@
     <div id="welcomeBack"></div>
     <div id="rankBar"></div>
     <div id="homeToday"></div>
-    <div class="store-card" id="storeCardBtn">
-      <div class="store-card-glow"></div>
-      <p class="sc-kicker">War300</p>
-      <p class="sc-title">Tienda oficial</p>
-      <p class="sc-sub">Equipo y merch de la marca. Próximamente.</p>
-      <span class="sc-cta">Ver más <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-    </div>
   </div>
 
   <div id="view-store">
@@ -1326,6 +1299,10 @@
       <p class="stick-caption" id="modalCaption">Silueta esquemática del movimiento — sirve para recordar la forma del ejercicio, no como guía de técnica detallada.</p>
     </div>
   </div>
+
+  <button class="store-fab" id="storeFabBtn" aria-label="Tienda">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 8L5.5 4H18.5L20 8M4 8V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V8M4 8H20M9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 
   <div class="bottom-bar">
     <button class="hamburger" id="menuBtn" aria-label="Menú">
@@ -2044,6 +2021,7 @@ function goToStore(){
   hideAllViews();
   viewStore.style.display = 'block';
   currentView = 'store';
+  document.getElementById('storeFabBtn').style.display = 'none';
   const video = document.getElementById('storeVideo');
   if(video){ video.currentTime = 0; video.play().catch(()=>{}); }
 }
@@ -2051,6 +2029,7 @@ function goToStore(){
 function goBackFromStore(){
   const video = document.getElementById('storeVideo');
   if(video) video.pause();
+  document.getElementById('storeFabBtn').style.display = 'flex';
   switch(storeReturnView){
     case 'checklist': goToChecklistFromHome(); break;
     case 'exercises': goToExercises(); break;
@@ -2619,7 +2598,7 @@ document.getElementById('navStore').addEventListener('click', ()=>{
   closeDropdowns();
   goToStore();
 });
-document.getElementById('storeCardBtn').addEventListener('click', goToStore);
+document.getElementById('storeFabBtn').addEventListener('click', goToStore);
 document.getElementById('storeBackBtn').addEventListener('click', goBackFromStore);
 
 // ---- Temas de color ----
