@@ -318,7 +318,7 @@
   .continue-mini svg{width:16px;height:16px;}
   .continue-mini:active{opacity:.6;}
 
-  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period{display:none;}
+  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store{display:none;}
 
   .rank-bar{
     background:var(--panel);
@@ -406,6 +406,60 @@
     padding:13px 20px;border-radius:12px;
   }
   .today-card .tc-cta svg{width:15px;height:15px;}
+
+  .store-card{
+    position:relative;
+    margin-top:14px;
+    background:linear-gradient(155deg, var(--panel) 0%, var(--ink) 100%);
+    border:1px solid var(--day1);
+    border-radius:18px;
+    padding:22px 24px;
+    cursor:pointer;
+    overflow:hidden;
+    isolation:isolate;
+  }
+  .store-card-glow{
+    position:absolute;top:-40%;right:-20%;
+    width:220px;height:220px;border-radius:50%;
+    background:radial-gradient(circle, var(--day1) 0%, transparent 70%);
+    opacity:.25;
+    z-index:-1;
+    pointer-events:none;
+  }
+  .store-card .sc-kicker{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;color:var(--day1);
+    text-transform:uppercase;letter-spacing:1.2px;margin:0 0 8px;
+  }
+  .store-card .sc-title{font-family:'Archivo Black',sans-serif;font-size:19px;margin:0 0 6px;color:var(--text);}
+  .store-card .sc-sub{font-size:12.5px;color:var(--text-dim);margin:0 0 16px;line-height:1.4;}
+  .store-card .sc-cta{
+    display:inline-flex;align-items:center;gap:7px;
+    font-weight:700;font-size:13px;color:var(--day1);
+  }
+  .store-card .sc-cta svg{width:14px;height:14px;}
+
+  #view-store{
+    position:fixed;inset:0;
+    width:100vw;height:100vh;
+    background:#000;
+    z-index:500;
+  }
+  #storeVideo{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    object-fit:cover;
+  }
+  .store-back{
+    position:absolute;top:max(18px, env(safe-area-inset-top));left:18px;
+    display:flex;align-items:center;gap:6px;
+    background:rgba(14,16,19,.55);backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.18);
+    color:#fff;font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;
+    padding:9px 14px 9px 10px;border-radius:11px;
+    cursor:pointer;z-index:2;
+  }
+
   .ex-topbar{
     display:flex;align-items:center;gap:12px;
     margin-bottom:24px;
@@ -1061,6 +1115,10 @@
       <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10M12 21V3M19 21V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Progreso
     </div>
+    <div class="dropdown-item" id="navStore">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 8L5.5 4H18.5L20 8M4 8V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V8M4 8H20M9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Tienda
+    </div>
   </div>
 
   <div class="settings-overlay" id="settingsOverlay">
@@ -1143,6 +1201,21 @@
     <div id="welcomeBack"></div>
     <div id="rankBar"></div>
     <div id="homeToday"></div>
+    <div class="store-card" id="storeCardBtn">
+      <div class="store-card-glow"></div>
+      <p class="sc-kicker">War300</p>
+      <p class="sc-title">Tienda oficial</p>
+      <p class="sc-sub">Equipo y merch de la marca. Próximamente.</p>
+      <span class="sc-cta">Ver más <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </div>
+  </div>
+
+  <div id="view-store">
+    <video id="storeVideo" src="tienda-video.mp4" autoplay muted loop playsinline></video>
+    <button class="store-back" id="storeBackBtn" aria-label="Volver">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Volver
+    </button>
   </div>
 
   <div id="view-checklist">
@@ -1849,6 +1922,12 @@ function renderExecCard(){
     workData[workKey] = { peso: pesoNow, series: seriesInput.value, reps: repsInput.value };
     autosave();
   }
+  // Se guarda una vez al mostrar la tarjeta, con los valores ya visibles
+  // (aunque el usuario no toque nada). Antes, si dejabas el peso por defecto
+  // sin tocar el stepper, ese ejercicio nunca quedaba registrado con peso al
+  // terminar el entreno — por eso el progreso de algunos ejercicios no
+  // aparecía aunque los hubieras hecho varias veces.
+  saveWork();
   function checkRecord(newPeso){
     const baseline = prSnapshot[workKey];
     if(baseline != null && newPeso > baseline && !prsHitThisSession[workKey]){
@@ -1943,9 +2022,11 @@ const viewHome = document.getElementById('view-home');
 const viewStats = document.getElementById('view-stats');
 const viewStatsDaily = document.getElementById('view-stats-daily');
 const viewStatsPeriod = document.getElementById('view-stats-period');
+const viewStore = document.getElementById('view-store');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
+let storeReturnView = 'home';
 
 function hideAllViews(){
   viewHome.style.display = 'none';
@@ -1955,6 +2036,30 @@ function hideAllViews(){
   viewStats.style.display = 'none';
   viewStatsDaily.style.display = 'none';
   viewStatsPeriod.style.display = 'none';
+  viewStore.style.display = 'none';
+}
+
+function goToStore(){
+  storeReturnView = currentView;
+  hideAllViews();
+  viewStore.style.display = 'block';
+  currentView = 'store';
+  const video = document.getElementById('storeVideo');
+  if(video){ video.currentTime = 0; video.play().catch(()=>{}); }
+}
+
+function goBackFromStore(){
+  const video = document.getElementById('storeVideo');
+  if(video) video.pause();
+  switch(storeReturnView){
+    case 'checklist': goToChecklistFromHome(); break;
+    case 'exercises': goToExercises(); break;
+    case 'execution': if(!tryRestoreExecution()) goHome(); break;
+    case 'stats': goToStats(); break;
+    case 'stats-daily': goToStatsDaily(); break;
+    case 'stats-period': goToStatsPeriod(); break;
+    default: goHome();
+  }
 }
 
 function goToStats(){
@@ -2509,6 +2614,13 @@ document.getElementById('statsDailyBtn').addEventListener('click', goToStatsDail
 document.getElementById('statsPeriodBtn').addEventListener('click', goToStatsPeriod);
 document.getElementById('statsDailyBackBtn').addEventListener('click', goToStats);
 document.getElementById('statsPeriodBackBtn').addEventListener('click', goToStats);
+
+document.getElementById('navStore').addEventListener('click', ()=>{
+  closeDropdowns();
+  goToStore();
+});
+document.getElementById('storeCardBtn').addEventListener('click', goToStore);
+document.getElementById('storeBackBtn').addEventListener('click', goBackFromStore);
 
 // ---- Temas de color ----
 const THEMES = [
