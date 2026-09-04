@@ -394,18 +394,10 @@
     border:1px solid var(--line);
     border-radius:18px;
     padding:24px;
-    cursor:pointer;
   }
   .today-card .tc-kicker{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;}
   .today-card .tc-title{font-size:22px;font-weight:800;margin:0 0 10px;}
-  .today-card .tc-list{font-size:13.5px;color:var(--text-dim);line-height:1.6;margin:0 0 18px;}
-  .today-card .tc-cta{
-    display:inline-flex;align-items:center;gap:8px;
-    background:var(--text);color:var(--ink);
-    font-weight:700;font-size:14px;
-    padding:13px 20px;border-radius:12px;
-  }
-  .today-card .tc-cta svg{width:15px;height:15px;}
+  .today-card .tc-list{font-size:13.5px;color:var(--text-dim);line-height:1.6;margin:0;}
 
   .store-fab{
     position:fixed;right:18px;bottom:calc(64px + 18px + env(safe-area-inset-bottom));
@@ -1679,6 +1671,11 @@ const execCard = document.getElementById('execCard');
 const execProgress = document.getElementById('execProgress');
 let execList = [];
 let execIndex = 0;
+// Se reasigna en cada renderExecCard() con el peso/series/reps de ESA
+// tarjeta. Se llama únicamente al tocar "Continuar"/"Finalizar" — ya no hay
+// guardado automático mientras el usuario toca el stepper o escribe.
+let commitCurrentCard = function(){};
+let homeStartAction = null;
 // Récords personales: se compara el peso de esta sesión contra el último peso
 // guardado de cada ejercicio (no un máximo histórico absoluto, ya que solo
 // persistimos el valor más reciente por ejercicio).
@@ -1895,16 +1892,6 @@ function renderExecCard(){
   const pesoDisplay = document.getElementById('execPeso');
   const seriesInput = document.getElementById('execSeries');
   const repsInput = document.getElementById('execReps');
-  function saveWork(){
-    workData[workKey] = { peso: pesoNow, series: seriesInput.value, reps: repsInput.value };
-    autosave();
-  }
-  // Se guarda una vez al mostrar la tarjeta, con los valores ya visibles
-  // (aunque el usuario no toque nada). Antes, si dejabas el peso por defecto
-  // sin tocar el stepper, ese ejercicio nunca quedaba registrado con peso al
-  // terminar el entreno — por eso el progreso de algunos ejercicios no
-  // aparecía aunque los hubieras hecho varias veces.
-  saveWork();
   function checkRecord(newPeso){
     const baseline = prSnapshot[workKey];
     if(baseline != null && newPeso > baseline && !prsHitThisSession[workKey]){
@@ -1912,16 +1899,32 @@ function renderExecCard(){
       showToast(`🔥 Nuevo récord: ${item.exName} ${newPeso}kg`);
     }
   }
+  // Guardado inmediato (sin demora) cada vez que cambia peso, series o
+  // repeticiones — no espera a que toques "Continuar". Ese botón, además,
+  // hace un guardado final de respaldo por si acaso (ver commitCurrentCard).
+  function saveNow(){
+    workData[workKey] = { peso: pesoNow, series: seriesInput.value, reps: repsInput.value };
+    persistState(true);
+  }
+  commitCurrentCard = function(){
+    const inp = pesoDisplay.querySelector('input');
+    if(inp){
+      let val = parseFloat(String(inp.value || '').replace(',', '.'));
+      if(!isNaN(val) && val >= 0) pesoNow = Math.round(val * 100) / 100;
+    }
+    saveNow();
+    checkRecord(pesoNow);
+  };
   function bumpUp(){
     pesoNow = Math.round((pesoNow + step) * 100) / 100;
     pesoDisplay.textContent = pesoNow;
-    saveWork();
+    saveNow();
     checkRecord(pesoNow);
   }
   function bumpDown(){
     pesoNow = Math.max(0, Math.round((pesoNow - step) * 100) / 100);
     pesoDisplay.textContent = pesoNow;
-    saveWork();
+    saveNow();
   }
   // Toca el número de peso para escribirlo directamente (útil para saltos
   // grandes, en vez de mantener presionado el "+"). El stepper +/- sigue
@@ -1942,7 +1945,7 @@ function renderExecCard(){
       val = Math.round(val * 100) / 100;
       pesoNow = val;
       pesoDisplay.textContent = pesoNow;
-      saveWork();
+      saveNow();
       checkRecord(pesoNow);
     }
     inp.addEventListener('blur', commit);
@@ -1951,6 +1954,8 @@ function renderExecCard(){
     });
   }
   pesoDisplay.addEventListener('click', openPesoEditor);
+  seriesInput.addEventListener('change', saveNow);
+  repsInput.addEventListener('change', saveNow);
   function attachLongPress(btn, fn){
     let holdTimeout = null, holdInterval = null;
     function start(e){
@@ -1969,8 +1974,6 @@ function renderExecCard(){
   }
   attachLongPress(document.getElementById('pesoUp'), bumpUp);
   attachLongPress(document.getElementById('pesoDown'), bumpDown);
-  seriesInput.addEventListener('input', saveWork);
-  repsInput.addEventListener('input', saveWork);
 
   execCard.querySelectorAll('.ex-option').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
@@ -2279,24 +2282,24 @@ async function renderHome(){
   }).filter(Boolean);
 
   if(items.length > 0){
+    homeStartAction = startTodayFromHome;
     homeToday.innerHTML = `
       <div class="today-card" id="todayCardBtn">
         <p class="tc-kicker">Hoy</p>
         <p class="tc-title">Lo que sigue de tu rutina</p>
         <p class="tc-list">${items.join('<br>')}</p>
-        <span class="tc-cta">Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </div>`;
-    document.getElementById('todayCardBtn').addEventListener('click', startTodayFromHome);
   } else {
+    homeStartAction = goToChecklistFromHome;
     homeToday.innerHTML = `
       <div class="today-card" id="todayCardBtn">
         <p class="tc-kicker">Hoy</p>
         <p class="tc-title">Programa tu entreno</p>
         <p class="tc-list">Elige qué vas a trabajar hoy.</p>
-        <span class="tc-cta">Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </div>`;
-    document.getElementById('todayCardBtn').addEventListener('click', goToChecklistFromHome);
   }
+  continueBtn.style.visibility = 'visible';
+  continueBtn.innerHTML = `Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
   const welcomeBack = document.getElementById('welcomeBack');
   if(!currentUser){ welcomeBack.innerHTML = ''; return; }
@@ -2414,9 +2417,12 @@ function goToExecution(){
 }
 
 continueBtn.addEventListener('click', async ()=>{
-  if(currentView === 'checklist') goToExercises();
+  if(currentView === 'home'){ if(homeStartAction) homeStartAction(); }
+  else if(currentView === 'checklist') goToExercises();
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
+    commitCurrentCard();
+    await persistState(true);
     execIndex++;
     if(execIndex >= execList.length){
       await finishSession();
