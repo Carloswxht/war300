@@ -613,10 +613,35 @@
   .exec-continue svg{width:15px;height:15px;}
   .exec-continue:active{transform:scale(.97);}
   .exec-done{
-    text-align:center;padding:60px 20px;
+    text-align:center;padding:44px 20px 30px;
   }
   .exec-done h2{font-family:'Archivo Black',sans-serif;font-size:24px;margin:0 0 8px;}
   .exec-done p{color:var(--text-dim);font-size:13.5px;margin:0;}
+
+  .summary-stats{
+    display:flex;gap:10px;margin:22px 0 0;
+  }
+  .summary-stat{
+    flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:14px 10px;text-align:center;
+  }
+  .summary-stat .num{font-family:'Archivo Black',sans-serif;font-size:22px;color:var(--text);display:block;}
+  .summary-stat .lbl{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+
+  .summary-prs{
+    margin-top:16px;text-align:left;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:14px 16px;
+  }
+  .summary-prs .pr-title{font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px;}
+  .summary-prs .pr-row{font-size:13.5px;color:var(--text);padding:4px 0;}
+
+  .summary-rankup{
+    margin-top:16px;border-radius:14px;padding:16px;text-align:center;
+    border:1px solid var(--rank-color, var(--line));
+    background:color-mix(in srgb, var(--rank-color, var(--line)) 14%, transparent);
+  }
+  .summary-rankup .ru-kicker{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin:0;}
+  .summary-rankup .ru-name{font-family:'Archivo Black',sans-serif;font-size:20px;margin:4px 0 0;color:var(--rank-color, var(--text));}
 
   .bottom-bar{
     position:fixed;
@@ -1519,6 +1544,12 @@ const execCard = document.getElementById('execCard');
 const execProgress = document.getElementById('execProgress');
 let execList = [];
 let execIndex = 0;
+// Récords personales: se compara el peso de esta sesión contra el último peso
+// guardado de cada ejercicio (no un máximo histórico absoluto, ya que solo
+// persistimos el valor más reciente por ejercicio).
+let prSnapshot = {};        // workKey -> peso guardado antes de empezar esta sesión
+let prsHitThisSession = {}; // workKey -> { exName, peso } — récords logrados en esta sesión
+let lastSessionSummary = null;
 
 function buildExecList(){
   const checkedSubs = board.querySelectorAll('.sub.on');
@@ -1541,10 +1572,34 @@ function renderExecCard(){
   if(execIndex >= execList.length){
     execProgress.textContent = '';
     continueBtn.style.visibility = 'hidden';
+    const s = lastSessionSummary;
+    let extraHtml = '';
+    if(s){
+      extraHtml += `
+        <div class="summary-stats">
+          <div class="summary-stat"><span class="num">${s.count}</span><span class="lbl">Ejercicios</span></div>
+          <div class="summary-stat"><span class="num">${s.tonelaje > 0 ? s.tonelaje.toLocaleString('es-ES') : '—'}</span><span class="lbl">Kg movidos</span></div>
+        </div>`;
+      if(s.prList.length > 0){
+        extraHtml += `
+          <div class="summary-prs">
+            <p class="pr-title">Récords de hoy 🔥</p>
+            ${s.prList.map(pr=>`<p class="pr-row">${pr.exName} — ${pr.peso}kg</p>`).join('')}
+          </div>`;
+      }
+      if(s.rankedUp){
+        extraHtml += `
+          <div class="summary-rankup" style="--rank-color:${s.rankAfter.color};">
+            <p class="ru-kicker">Subiste de rango</p>
+            <p class="ru-name">${s.rankAfter.name}</p>
+          </div>`;
+      }
+    }
     execCard.innerHTML = `
       <div class="exec-done">
         <h2>¡Listo! 💪</h2>
         <p>Terminaste todos los ejercicios que elegiste para hoy.</p>
+        ${extraHtml}
         <button id="execDoneHome" style="margin-top:22px;width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">Volver al inicio</button>
       </div>`;
     document.getElementById('execDoneHome').addEventListener('click', goHome);
@@ -1616,6 +1671,11 @@ function renderExecCard(){
     pesoNow = Math.round((pesoNow + step) * 100) / 100;
     pesoDisplay.textContent = pesoNow;
     saveWork();
+    const baseline = prSnapshot[workKey];
+    if(baseline != null && pesoNow > baseline && !prsHitThisSession[workKey]){
+      prsHitThisSession[workKey] = { exName: item.exName, peso: pesoNow };
+      showToast(`🔥 Nuevo récord: ${item.exName} ${pesoNow}kg`);
+    }
   }
   function bumpDown(){
     pesoNow = Math.max(0, Math.round((pesoNow - step) * 100) / 100);
@@ -1759,9 +1819,11 @@ function rankFor(pct){
   return { current, next };
 }
 
-async function renderRankBar(){
-  const rankBar = document.getElementById('rankBar');
-  if(!currentUser){ rankBar.innerHTML = ''; return; }
+// Consulta el % de cumplimiento actual (últimas 4 semanas) y el rango correspondiente.
+// Se reutiliza tanto en la barra de Inicio como en el resumen de fin de sesión,
+// para no duplicar la misma query en dos lugares.
+async function getCurrentRankPct(){
+  if(!currentUser) return { pct: 0, current: RANKS[0], next: RANKS[1] };
   try{
     const since = new Date();
     since.setDate(since.getDate() - 28);
@@ -1772,6 +1834,17 @@ async function renderRankBar(){
     const completed = (data || []).length;
     const pct = Math.min(100, Math.round((completed / EXPECTED_SESSIONS_4WEEKS) * 100));
     const { current, next } = rankFor(pct);
+    return { pct, current, next };
+  }catch(e){
+    return { pct: 0, current: RANKS[0], next: RANKS[1] };
+  }
+}
+
+async function renderRankBar(){
+  const rankBar = document.getElementById('rankBar');
+  if(!currentUser){ rankBar.innerHTML = ''; return; }
+  try{
+    const { pct, current, next } = await getCurrentRankPct();
     rankBar.innerHTML = `
       <div class="rank-bar" style="border-color:${current.color}55;">
         <div class="rank-bar-top">
@@ -1851,18 +1924,55 @@ async function renderHome(){
   }
 }
 
+// Convierte "12-15" -> 13.5 (promedio), "8" -> 8. Si no hay número, devuelve 0.
+function parseNumRange(val){
+  if(val == null) return 0;
+  const nums = String(val).match(/\d+(\.\d+)?/g);
+  if(!nums || nums.length === 0) return 0;
+  if(nums.length >= 2) return (Number(nums[0]) + Number(nums[1])) / 2;
+  return Number(nums[0]);
+}
+
 async function finishSession(){
   if(!currentUser || execList.length === 0) return;
+  const rankBefore = await getCurrentRankPct();
+
   const resumen = execList.map(i => ({ muscleName: i.muscleName, subName: i.subName, exName: i.exName }));
   const fecha = new Date().toISOString().slice(0,10);
   const accentCounts = {};
   execList.forEach(i => { accentCounts[i.accent] = (accentCounts[i.accent]||0) + 1; });
   const dia = Object.keys(accentCounts).sort((a,b)=> accentCounts[b]-accentCounts[a])[0];
+
+  // Tonelaje estimado: peso x series x reps (promedio si es rango).
+  // Los ejercicios por tiempo (ej. "30-45 seg") no suman aquí — no son comparables en kg.
+  let tonelaje = 0;
+  execList.forEach(item=>{
+    const wk = item.subId + '::' + item.exName;
+    const w = workData[wk];
+    if(!w) return;
+    const repsStr = String(w.reps || '');
+    if(/seg/i.test(repsStr)) return;
+    const peso = Number(w.peso) || 0;
+    tonelaje += peso * parseNumRange(w.series) * parseNumRange(repsStr);
+  });
+
   try{
     await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen, dia: dia ? Number(dia) : null });
   }catch(e){
     // si falla el guardado del historial, no bloquea el flujo
   }
+
+  const rankAfter = await getCurrentRankPct();
+
+  lastSessionSummary = {
+    count: execList.length,
+    tonelaje: Math.round(tonelaje),
+    prList: Object.values(prsHitThisSession),
+    rankBefore: rankBefore.current,
+    rankAfter: rankAfter.current,
+    rankedUp: rankBefore.current.name !== rankAfter.current.name,
+  };
+
   board.querySelectorAll('.sub.on').forEach(el=> el.classList.remove('on'));
   execList.forEach(i => { delete chosenExercise[i.subId]; });
   await persistState(true);
@@ -1886,6 +1996,14 @@ function goToExecution(){
   }
   execIndex = 0;
   cameFromHome = false;
+  prSnapshot = {};
+  prsHitThisSession = {};
+  lastSessionSummary = null;
+  execList.forEach(item=>{
+    const wk = item.subId + '::' + item.exName;
+    const saved = workData[wk];
+    if(saved && saved.peso != null) prSnapshot[wk] = Number(saved.peso);
+  });
   renderExecCard();
   hideAllViews();
   viewExecution.style.display = 'block';
