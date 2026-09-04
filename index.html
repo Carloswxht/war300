@@ -318,7 +318,7 @@
   .continue-mini svg{width:16px;height:16px;}
   .continue-mini:active{opacity:.6;}
 
-  #view-exercises, #view-execution, #view-checklist{display:none;}
+  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period{display:none;}
 
   .rank-bar{
     background:var(--panel);
@@ -372,10 +372,23 @@
   .history-card .hc-date{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;margin:0 0 6px;}
   .history-card .hc-day{font-size:14px;font-weight:800;margin:0 0 8px;}
   .history-card .hc-list{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin:0;}
+  .history-card .hc-kg{font-size:11.5px;color:var(--accent, var(--text));font-weight:700;margin:6px 0 0;}
   .history-empty{
     font-size:12.5px;color:var(--text-dim);
     padding:14px 2px;
   }
+
+  .stats-menu{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .stats-option{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;cursor:pointer;
+  }
+  .stats-option:active{transform:scale(.98);}
+  .stats-option .so-name{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px;color:var(--text);}
+  .stats-option .so-desc{font-size:12.5px;color:var(--text-dim);margin:0;line-height:1.4;}
+
+  .stats-daily-list{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .stats-daily-list .history-card{width:auto;}
   .today-card{
     background:var(--panel);
     border:1px solid var(--line);
@@ -393,10 +406,6 @@
     padding:13px 20px;border-radius:12px;
   }
   .today-card .tc-cta svg{width:15px;height:15px;}
-  .change-routine{
-    text-align:center;font-size:12.5px;color:var(--text-dim);
-    text-decoration:underline;margin:14px 2px 0;cursor:pointer;
-  }
   .ex-topbar{
     display:flex;align-items:center;gap:12px;
     margin-bottom:24px;
@@ -1038,7 +1047,11 @@
     </div>
     <div class="dropdown-item" id="navRutina">
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 6H20M4 12H20M4 18H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      Rutina
+      Cambiar rutina
+    </div>
+    <div class="dropdown-item" id="navStats">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10M12 21V3M19 21V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Estadísticas
     </div>
   </div>
 
@@ -1121,7 +1134,6 @@
   <div id="view-home">
     <div id="welcomeBack"></div>
     <div id="rankBar"></div>
-    <div id="homeHistory" class="home-history"></div>
     <div id="homeToday"></div>
   </div>
 
@@ -1156,6 +1168,45 @@
       <div class="exec-progress" id="execProgress"></div>
     </div>
     <div id="execCard"></div>
+  </div>
+
+  <div id="view-stats">
+    <div class="ex-topbar">
+      <button class="back-btn" id="statsBackBtn" aria-label="Volver al inicio">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Estadísticas</h2>
+    </div>
+    <div class="stats-menu">
+      <div class="stats-option" id="statsDailyBtn">
+        <p class="so-name">Por día</p>
+        <p class="so-desc">Cada entreno que registras, con lo que hiciste y tu peso.</p>
+      </div>
+      <div class="stats-option" id="statsPeriodBtn">
+        <p class="so-name">Por semana y mes</p>
+        <p class="so-desc">Cuántos días entrenaste esta semana y este mes.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-stats-daily">
+    <div class="ex-topbar">
+      <button class="back-btn" id="statsDailyBackBtn" aria-label="Volver">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Por día</h2>
+    </div>
+    <div id="statsDailyList" class="stats-daily-list"></div>
+  </div>
+
+  <div id="view-stats-period">
+    <div class="ex-topbar">
+      <button class="back-btn" id="statsPeriodBackBtn" aria-label="Volver">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Por semana y mes</h2>
+    </div>
+    <div id="statsPeriodContent"></div>
   </div>
 
 
@@ -1813,6 +1864,9 @@ function renderExecCard(){
 
 // ---- Navegación entre pantallas ----
 const viewHome = document.getElementById('view-home');
+const viewStats = document.getElementById('view-stats');
+const viewStatsDaily = document.getElementById('view-stats-daily');
+const viewStatsPeriod = document.getElementById('view-stats-period');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
@@ -1822,6 +1876,106 @@ function hideAllViews(){
   viewChecklist.style.display = 'none';
   viewExercises.style.display = 'none';
   viewExecution.style.display = 'none';
+  viewStats.style.display = 'none';
+  viewStatsDaily.style.display = 'none';
+  viewStatsPeriod.style.display = 'none';
+}
+
+function goToStats(){
+  hideAllViews();
+  viewStats.style.display = 'block';
+  currentView = 'stats';
+  continueBtn.style.visibility = 'hidden';
+  window.scrollTo(0,0);
+}
+
+function goToStatsDaily(){
+  hideAllViews();
+  viewStatsDaily.style.display = 'block';
+  currentView = 'stats-daily';
+  continueBtn.style.visibility = 'hidden';
+  renderStatsDaily();
+  window.scrollTo(0,0);
+}
+
+function goToStatsPeriod(){
+  hideAllViews();
+  viewStatsPeriod.style.display = 'block';
+  currentView = 'stats-period';
+  continueBtn.style.visibility = 'hidden';
+  renderStatsPeriod();
+  window.scrollTo(0,0);
+}
+
+// Historial diario detallado (antes vivía en Inicio) — ahora dentro de
+// Estadísticas > Por día. Incluye el tonelaje estimado por sesión cuando
+// hay datos de peso guardados (sesiones anteriores a este cambio no lo tienen).
+async function renderStatsDaily(){
+  const el = document.getElementById('statsDailyList');
+  if(!currentUser){ el.innerHTML = ''; return; }
+  el.innerHTML = `<p class="history-empty">Cargando...</p>`;
+  try{
+    const { data, error } = await sb.from('sesiones').select('*').eq('user_id', currentUser.id).order('fecha', { ascending:false }).limit(30);
+    if(error) throw error;
+    if(!data || data.length === 0){
+      el.innerHTML = `<p class="history-empty">Todavía no tienes entrenos completados.</p>`;
+      return;
+    }
+    el.innerHTML = data.map(s=>{
+      const d = new Date(s.fecha + 'T00:00:00');
+      const dateLabel = d.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'short' });
+      const muscles = [...new Set((s.resumen||[]).map(i=>i.muscleName))].join(', ');
+      let tonelaje = 0;
+      (s.resumen||[]).forEach(entry=>{
+        if(entry.peso == null) return;
+        const repsStr = String(entry.reps || '');
+        if(/seg/i.test(repsStr)) return;
+        tonelaje += Number(entry.peso) * parseNumRange(entry.series) * parseNumRange(repsStr);
+      });
+      const kgLine = tonelaje > 0 ? `<p class="hc-kg">${Math.round(tonelaje).toLocaleString('es-ES')}kg movidos</p>` : '';
+      return `<div class="history-card">
+        <p class="hc-date">${dateLabel}</p>
+        <p class="hc-day">${muscles || 'Entreno'}</p>
+        <p class="hc-list">${(s.resumen||[]).length} ejercicios</p>
+        ${kgLine}
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML = '';
+  }
+}
+
+// Conteo de entrenos en la semana calendario actual (lunes-domingo) y en
+// el mes calendario actual.
+async function renderStatsPeriod(){
+  const el = document.getElementById('statsPeriodContent');
+  if(!currentUser){ el.innerHTML = ''; return; }
+  el.innerHTML = `<p class="history-empty">Cargando...</p>`;
+  try{
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const day = now.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() + diffToMonday);
+    weekStart.setHours(0,0,0,0);
+    const fetchStart = weekStart < monthStart ? weekStart : monthStart;
+    const fetchStartStr = fetchStart.toISOString().slice(0,10);
+    const { data, error } = await sb.from('sesiones').select('fecha').eq('user_id', currentUser.id).gte('fecha', fetchStartStr);
+    if(error) throw error;
+    const monthStartStr = monthStart.toISOString().slice(0,10);
+    const weekStartStr = weekStart.toISOString().slice(0,10);
+    const weekCount = (data || []).filter(s => s.fecha >= weekStartStr).length;
+    const monthCount = (data || []).filter(s => s.fecha >= monthStartStr).length;
+    const monthLabel = now.toLocaleDateString('es-ES', { month:'long' });
+    el.innerHTML = `
+      <div class="summary-stats" style="margin-top:6px;">
+        <div class="summary-stat"><span class="num">${weekCount}</span><span class="lbl">Esta semana</span></div>
+        <div class="summary-stat"><span class="num">${monthCount}</span><span class="lbl">${monthLabel}</span></div>
+      </div>`;
+  }catch(e){
+    el.innerHTML = `<p class="history-empty">No se pudo cargar.</p>`;
+  }
 }
 
 function goHome(){
@@ -1970,8 +2124,7 @@ async function renderHome(){
         <p class="tc-title">Lo que sigue de tu rutina</p>
         <p class="tc-list">${items.join('<br>')}</p>
         <span class="tc-cta">Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </div>
-      <p class="change-routine" id="changeRoutineBtn">Cambiar rutina</p>`;
+      </div>`;
     document.getElementById('todayCardBtn').addEventListener('click', startTodayFromHome);
   } else {
     homeToday.innerHTML = `
@@ -1984,17 +2137,12 @@ async function renderHome(){
     document.getElementById('todayCardBtn').addEventListener('click', goToChecklistFromHome);
   }
 
-  const changeBtn = document.getElementById('changeRoutineBtn');
-  if(changeBtn) changeBtn.addEventListener('click', goToChecklistFromHome);
-
-  const homeHistory = document.getElementById('homeHistory');
   const welcomeBack = document.getElementById('welcomeBack');
-  if(!currentUser){ homeHistory.innerHTML = ''; welcomeBack.innerHTML = ''; return; }
+  if(!currentUser){ welcomeBack.innerHTML = ''; return; }
   try{
-    const { data, error } = await sb.from('sesiones').select('*').eq('user_id', currentUser.id).order('fecha', { ascending:false }).limit(8);
+    const { data, error } = await sb.from('sesiones').select('fecha').eq('user_id', currentUser.id).order('fecha', { ascending:false }).limit(1);
     if(error) throw error;
     if(!data || data.length === 0){
-      homeHistory.innerHTML = `<p class="history-empty">Todavía no tienes entrenos completados.</p>`;
       welcomeBack.innerHTML = '';
       return;
     }
@@ -2004,18 +2152,7 @@ async function renderHome(){
         <p class="wb-title">Bienvenido de vuelta 👋</p>
         <p class="wb-sub">Retoma cuando quieras, sin prisa. Lo importante es que volviste.</p>
       </div>` : '';
-    homeHistory.innerHTML = data.map(s=>{
-      const d = new Date(s.fecha + 'T00:00:00');
-      const dateLabel = d.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'short' });
-      const muscles = [...new Set((s.resumen||[]).map(i=>i.muscleName))].join(', ');
-      return `<div class="history-card">
-        <p class="hc-date">${dateLabel}</p>
-        <p class="hc-day">${muscles || 'Entreno'}</p>
-        <p class="hc-list">${(s.resumen||[]).length} ejercicios</p>
-      </div>`;
-    }).join('');
   }catch(e){
-    homeHistory.innerHTML = '';
     welcomeBack.innerHTML = '';
   }
 }
@@ -2283,6 +2420,17 @@ document.getElementById('navRutina').addEventListener('click', ()=>{
   closeDropdowns();
   goToChecklistFromHome();
 });
+
+document.getElementById('navStats').addEventListener('click', ()=>{
+  closeDropdowns();
+  goToStats();
+});
+
+document.getElementById('statsBackBtn').addEventListener('click', goHome);
+document.getElementById('statsDailyBtn').addEventListener('click', goToStatsDaily);
+document.getElementById('statsPeriodBtn').addEventListener('click', goToStatsPeriod);
+document.getElementById('statsDailyBackBtn').addEventListener('click', goToStats);
+document.getElementById('statsPeriodBackBtn').addEventListener('click', goToStats);
 
 // ---- Temas de color ----
 const THEMES = [
