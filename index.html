@@ -595,6 +595,14 @@
     flex:1;text-align:center;
     font-family:'Archivo',sans-serif;
     font-size:15px;font-weight:700;color:var(--text);
+    cursor:pointer;
+  }
+  .stepper-input{
+    width:100%;text-align:center;
+    font-family:'Archivo',sans-serif;
+    font-size:15px;font-weight:700;color:var(--text);
+    background:transparent;border:none;border-bottom:1.5px solid var(--accent,var(--text));
+    padding:0;outline:none;
   }
   .exec-badge{
     display:inline-block;
@@ -1804,21 +1812,52 @@ function renderExecCard(){
     workData[workKey] = { peso: pesoNow, series: seriesInput.value, reps: repsInput.value };
     autosave();
   }
+  function checkRecord(newPeso){
+    const baseline = prSnapshot[workKey];
+    if(baseline != null && newPeso > baseline && !prsHitThisSession[workKey]){
+      prsHitThisSession[workKey] = { exName: item.exName, peso: newPeso };
+      showToast(`🔥 Nuevo récord: ${item.exName} ${newPeso}kg`);
+    }
+  }
   function bumpUp(){
     pesoNow = Math.round((pesoNow + step) * 100) / 100;
     pesoDisplay.textContent = pesoNow;
     saveWork();
-    const baseline = prSnapshot[workKey];
-    if(baseline != null && pesoNow > baseline && !prsHitThisSession[workKey]){
-      prsHitThisSession[workKey] = { exName: item.exName, peso: pesoNow };
-      showToast(`🔥 Nuevo récord: ${item.exName} ${pesoNow}kg`);
-    }
+    checkRecord(pesoNow);
   }
   function bumpDown(){
     pesoNow = Math.max(0, Math.round((pesoNow - step) * 100) / 100);
     pesoDisplay.textContent = pesoNow;
     saveWork();
   }
+  // Toca el número de peso para escribirlo directamente (útil para saltos
+  // grandes, en vez de mantener presionado el "+"). El stepper +/- sigue
+  // igual para ajustes finos.
+  function openPesoEditor(){
+    if(pesoDisplay.querySelector('input')) return;
+    const current = pesoNow;
+    pesoDisplay.innerHTML = `<input type="text" inputmode="decimal" class="stepper-input" id="pesoInlineInput" value="${current}">`;
+    const inp = document.getElementById('pesoInlineInput');
+    inp.focus();
+    inp.select();
+    let committed = false;
+    function commit(){
+      if(committed) return;
+      committed = true;
+      let val = parseFloat(String(inp.value || '').replace(',', '.'));
+      if(isNaN(val) || val < 0) val = current;
+      val = Math.round(val * 100) / 100;
+      pesoNow = val;
+      pesoDisplay.textContent = pesoNow;
+      saveWork();
+      checkRecord(pesoNow);
+    }
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
+    });
+  }
+  pesoDisplay.addEventListener('click', openPesoEditor);
   function attachLongPress(btn, fn){
     let holdTimeout = null, holdInterval = null;
     function start(e){
