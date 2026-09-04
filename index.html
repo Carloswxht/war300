@@ -597,38 +597,34 @@
     font-weight:700;
     padding:11px 12px;
   }
-  .stepper{
-    display:flex;align-items:center;justify-content:space-between;
+  .peso-slider{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;
     background:var(--panel-2);
     border:1px solid var(--line);
     border-radius:10px;
-    padding:4px;
+    padding:8px 4px;
+    cursor:grab;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
   }
-  .stepper-btn{
-    width:30px;height:30px;
-    border-radius:8px;
-    border:none;
-    background:var(--panel);
-    color:var(--text);
-    font-size:18px;font-weight:700;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-    flex-shrink:0;
-    line-height:1;
-  }
-  .stepper-btn:active{background:var(--accent,var(--line));color:var(--ink);}
+  .peso-slider:active{cursor:grabbing;background:color-mix(in srgb, var(--accent, var(--panel)) 12%, var(--panel-2));}
+  .ps-arrow{width:14px;height:14px;color:var(--text-dim);flex-shrink:0;pointer-events:none;}
   .stepper-val{
-    flex:1;text-align:center;
+    text-align:center;
     font-family:'Archivo',sans-serif;
-    font-size:15px;font-weight:700;color:var(--text);
-    cursor:pointer;
+    font-size:22px;font-weight:800;color:var(--text);
+    padding:2px 0;
+    pointer-events:none;
   }
   .stepper-input{
     width:100%;text-align:center;
     font-family:'Archivo',sans-serif;
-    font-size:15px;font-weight:700;color:var(--text);
+    font-size:22px;font-weight:800;color:var(--text);
     background:transparent;border:none;border-bottom:1.5px solid var(--accent,var(--text));
     padding:0;outline:none;
+    pointer-events:auto;
   }
   .exec-badge{
     display:inline-block;
@@ -1870,10 +1866,10 @@ function renderExecCard(){
       <div class="exec-fields">
         <div class="exec-field">
           <label>Peso (kg)</label>
-          <div class="stepper">
-            <button type="button" class="stepper-btn" id="pesoDown">−</button>
+          <div class="peso-slider" id="pesoSlider">
+            <svg class="ps-arrow" viewBox="0 0 24 24" fill="none"><path d="M6 15L12 9L18 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span class="stepper-val" id="execPeso">${pesoVal}</span>
-            <button type="button" class="stepper-btn" id="pesoUp">+</button>
+            <svg class="ps-arrow" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
         </div>
         <div class="exec-field">
@@ -1933,20 +1929,10 @@ function renderExecCard(){
     saveNow();
     checkRecord(pesoNow);
   };
-  function bumpUp(){
-    pesoNow = Math.round((pesoNow + step) * 100) / 100;
-    pesoDisplay.textContent = pesoNow;
-    saveNow();
-    checkRecord(pesoNow);
-  }
-  function bumpDown(){
-    pesoNow = Math.max(0, Math.round((pesoNow - step) * 100) / 100);
-    pesoDisplay.textContent = pesoNow;
-    saveNow();
-  }
-  // Toca el número de peso para escribirlo directamente (útil para saltos
-  // grandes, en vez de mantener presionado el "+"). El stepper +/- sigue
-  // igual para ajustes finos.
+  // Toca el número para escribirlo directo, o desliza el dedo hacia
+  // arriba/abajo sobre toda la zona para subir/bajar de a "step" en "step"
+  // (más área táctil que un botón chico — evita el problema de fallar el
+  // toque con los dedos).
   function openPesoEditor(){
     if(pesoDisplay.querySelector('input')) return;
     const current = pesoNow;
@@ -1971,27 +1957,47 @@ function renderExecCard(){
       if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
     });
   }
-  pesoDisplay.addEventListener('click', openPesoEditor);
   seriesInput.addEventListener('change', saveNow);
   repsInput.addEventListener('change', saveNow);
-  function attachLongPress(btn, fn){
-    let holdTimeout = null, holdInterval = null;
-    function start(e){
-      e.preventDefault();
-      fn();
-      holdTimeout = setTimeout(()=>{
-        holdInterval = setInterval(fn, 110);
-      }, 450);
+
+  const pesoSlider = document.getElementById('pesoSlider');
+  const DRAG_PX_PER_STEP = 12; // píxeles de arrastre por cada "step" de cambio
+  const DRAG_THRESHOLD = 6;    // por debajo de esto se considera un toque, no un arrastre
+  let dragStartY = null, dragStartPeso = null, dragMoved = false;
+  pesoSlider.addEventListener('pointerdown', (e)=>{
+    if(pesoDisplay.querySelector('input')) return;
+    dragStartY = e.clientY;
+    dragStartPeso = pesoNow;
+    dragMoved = false;
+    pesoSlider.setPointerCapture(e.pointerId);
+  });
+  pesoSlider.addEventListener('pointermove', (e)=>{
+    if(dragStartY === null) return;
+    const deltaY = dragStartY - e.clientY; // positivo = dedo subió = peso sube
+    if(Math.abs(deltaY) > DRAG_THRESHOLD) dragMoved = true;
+    if(!dragMoved) return;
+    const steps = Math.round(deltaY / DRAG_PX_PER_STEP);
+    let val = dragStartPeso + steps * step;
+    val = Math.max(0, Math.round(val * 100) / 100);
+    if(val !== pesoNow){
+      pesoNow = val;
+      pesoDisplay.textContent = pesoNow;
     }
-    function stop(){
-      clearTimeout(holdTimeout);
-      clearInterval(holdInterval);
+  });
+  function endPesoDrag(){
+    if(dragStartY === null) return;
+    const wasDrag = dragMoved;
+    dragStartY = null;
+    dragMoved = false;
+    if(wasDrag){
+      saveNow();
+      checkRecord(pesoNow);
+    } else {
+      openPesoEditor();
     }
-    btn.addEventListener('pointerdown', start);
-    ['pointerup','pointercancel','pointerleave'].forEach(ev => btn.addEventListener(ev, stop));
   }
-  attachLongPress(document.getElementById('pesoUp'), bumpUp);
-  attachLongPress(document.getElementById('pesoDown'), bumpDown);
+  pesoSlider.addEventListener('pointerup', endPesoDrag);
+  pesoSlider.addEventListener('pointercancel', endPesoDrag);
 
   execCard.querySelectorAll('.ex-option').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
