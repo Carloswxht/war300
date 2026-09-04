@@ -647,7 +647,14 @@
     background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
   }
   .ep-title{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px;}
-  .ep-svg{width:100%;height:48px;display:block;}
+  .ep-scroll{
+    overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-x;
+    scrollbar-width:none;
+  }
+  .ep-scroll::-webkit-scrollbar{display:none;}
+  .ep-svg{display:block;flex-shrink:0;}
   .ep-delta{display:block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);}
 
   .exec-divider{
@@ -1744,33 +1751,44 @@ async function loadExerciseProgress(exName, token){
       });
     });
     el.innerHTML = points.length >= 2 ? buildProgressChart(points) : '';
+    const scroller = document.getElementById('epScroll');
+    if(scroller) scroller.scrollLeft = scroller.scrollWidth;
   }catch(e){
     // si falla la consulta, la tarjeta simplemente no muestra el mini-gráfico
   }
 }
 
 function buildProgressChart(points){
-  const W = 280, H = 56, padX = 6, padY = 10;
+  // Espaciado fijo por punto: si hay más de ~5, el SVG queda más ancho que
+  // su contenedor y el contenedor (con scroll horizontal) permite deslizar
+  // con el dedo para ver los puntos anteriores.
+  const SPACING = 54, padX = 20, padTop = 22, padBottom = 16;
+  const H = 66;
+  const n = points.length;
+  const W = Math.max(5, n - 1) * SPACING + padX * 2;
   const pesos = points.map(p=>p.peso);
   const min = Math.min(...pesos), max = Math.max(...pesos);
   const range = max - min || 1;
-  const n = points.length;
   const coords = points.map((p,i)=>{
-    const x = n === 1 ? padX : padX + (i/(n-1)) * (W - padX*2);
-    const y = H - padY - ((p.peso - min)/range) * (H - padY*2);
-    return { x, y };
+    const x = n === 1 ? padX : padX + i * SPACING;
+    const y = H - padBottom - ((p.peso - min)/range) * (H - padTop - padBottom);
+    return { x, y, peso: p.peso };
   });
   const path = coords.map((c,i)=> (i===0?'M':'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
-  const dots = coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.6" fill="var(--accent)"/>`).join('');
+  const dots = coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="var(--accent)"/>`).join('');
+  const labels = coords.map(c=>`<text x="${c.x.toFixed(1)}" y="${(c.y - 10).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text)">${c.peso}</text>`).join('');
   const first = points[0].peso, last = points[points.length - 1].peso;
   const delta = last - first;
   const deltaLabel = delta > 0 ? `<span class="ep-delta">+${delta}kg desde tu primera vez</span>` : '';
   return `
     <p class="ep-title">Tu progreso en este ejercicio</p>
-    <svg class="ep-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      ${dots}
-    </svg>
+    <div class="ep-scroll" id="epScroll">
+      <svg class="ep-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}
+        ${labels}
+      </svg>
+    </div>
     ${deltaLabel}`;
 }
 
