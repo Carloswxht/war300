@@ -1059,7 +1059,7 @@
     </div>
     <div class="dropdown-item" id="navStats">
       <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10M12 21V3M19 21V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Estadísticas
+      Progreso
     </div>
   </div>
 
@@ -1183,7 +1183,7 @@
       <button class="back-btn" id="statsBackBtn" aria-label="Volver al inicio">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <h2>Estadísticas</h2>
+      <h2>Progreso</h2>
     </div>
     <div class="stats-menu">
       <div class="stats-option" id="statsDailyBtn">
@@ -1636,6 +1636,41 @@ let prSnapshot = {};        // workKey -> peso guardado antes de empezar esta se
 let prsHitThisSession = {}; // workKey -> { exName, peso } — récords logrados en esta sesión
 let lastSessionSummary = null;
 
+// ---- Recuperar la posición del entreno si Android mata la pestaña en segundo
+// plano (al cambiar de app) y Chrome la recarga desde cero al volver. Sin esto,
+// la app siempre reaparecía en Inicio aunque estuvieras a mitad de un ejercicio.
+const EXEC_NAV_KEY = 'war300_exec_nav';
+function saveExecNav(){
+  try{
+    localStorage.setItem(EXEC_NAV_KEY, JSON.stringify({ execIndex, cameFromHome }));
+  }catch(e){}
+}
+function clearExecNav(){
+  try{ localStorage.removeItem(EXEC_NAV_KEY); }catch(e){}
+}
+function tryRestoreExecution(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(EXEC_NAV_KEY) || 'null'); }catch(e){ saved = null; }
+  if(!saved) return false;
+  buildExecList();
+  if(execList.length === 0){ clearExecNav(); return false; }
+  execIndex = Math.min(Math.max(0, saved.execIndex || 0), execList.length - 1);
+  cameFromHome = !!saved.cameFromHome;
+  prSnapshot = {};
+  prsHitThisSession = {};
+  lastSessionSummary = null;
+  execList.forEach(item=>{
+    const wk = item.subId + '::' + item.exName;
+    const savedW = workData[wk];
+    if(savedW && savedW.peso != null) prSnapshot[wk] = Number(savedW.peso);
+  });
+  hideAllViews();
+  viewExecution.style.display = 'block';
+  currentView = 'execution';
+  renderExecCard();
+  return true;
+}
+
 // ---- Progreso por ejercicio: mini-gráfico dentro de la tarjeta de ejecución ----
 // Se arma a partir del historial guardado en sesiones.resumen (peso por ejercicio
 // por fecha). Solo cubre sesiones guardadas desde que se agregó este campo —
@@ -1711,6 +1746,7 @@ function buildExecList(){
 
 function renderExecCard(){
   if(execIndex >= execList.length){
+    clearExecNav();
     execProgress.textContent = '';
     continueBtn.style.visibility = 'hidden';
     const s = lastSessionSummary;
@@ -1747,6 +1783,7 @@ function renderExecCard(){
     return;
   }
   const item = execList[execIndex];
+  saveExecNav();
   const patternKey = EXERCISE_PATTERN[item.exName] || 'curl';
   const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
   const workKey = item.subId + '::' + item.exName;
@@ -2019,6 +2056,7 @@ async function renderStatsPeriod(){
 
 function goHome(){
   hideAllViews();
+  clearExecNav();
   viewHome.style.display = 'block';
   currentView = 'home';
   continueBtn.style.visibility = 'hidden';
@@ -2317,6 +2355,7 @@ document.getElementById('backBtn').addEventListener('click', ()=>{
 
 document.getElementById('execBackBtn').addEventListener('click', ()=>{
   hideAllViews();
+  clearExecNav();
   if(cameFromHome){
     viewHome.style.display = 'block';
     currentView = 'home';
@@ -2856,7 +2895,7 @@ async function onLoggedIn(user){
   currentUser = user;
   authGate.classList.add('hidden');
   await loadState();
-  goHome();
+  if(!tryRestoreExecution()) goHome();
 }
 
 function onLoggedOut(){
