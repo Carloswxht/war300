@@ -1551,7 +1551,7 @@ board.querySelectorAll('.sub').forEach(el=>{
   el.addEventListener('click', (e)=>{
     e.stopPropagation();
     el.classList.toggle('on');
-    autosave();
+    persistState(true);
   });
 });
 
@@ -1619,7 +1619,7 @@ function renderExercisesView(){
       card.querySelectorAll('.ex-option').forEach(o=> o.classList.remove('picked'));
       opt.classList.add('picked');
       chosenExercise[subId] = opt.dataset.ex;
-      autosave();
+      persistState(true);
     });
   });
 
@@ -1982,7 +1982,7 @@ function renderExecCard(){
       if(newEx === item.exName) return;
       chosenExercise[item.subId] = newEx;
       execList[execIndex].exName = newEx;
-      autosave();
+      persistState(true);
       renderExecCard();
     });
   });
@@ -2273,7 +2273,7 @@ async function renderHome(){
     const nextAccent = await getNextDayAccent();
     const dayObj = autoProgramDay(nextAccent);
     checkedEls = [...board.querySelectorAll('.sub.on')];
-    autosave();
+    persistState(true);
   }
 
   const items = checkedEls.map(el=>{
@@ -2512,12 +2512,6 @@ async function persistState(silent){
   }catch(e){
     if(!silent) showToast('No se pudo guardar, inténtalo de nuevo.');
   }
-}
-
-let autosaveTimer = null;
-function autosave(){
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(()=> persistState(true), 500);
 }
 
 async function loadState(){
