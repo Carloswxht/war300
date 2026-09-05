@@ -1013,7 +1013,15 @@
   }
   .dropdown-item:active{background:var(--panel-2);}
   .dropdown-item svg{width:16px;height:16px;color:var(--text-dim);flex-shrink:0;}
-  #profileMenu{top:62px;right:18px;}
+  .dropdown-email{
+    padding:10px 12px 12px;
+    margin-bottom:4px;
+    border-bottom:1px solid var(--line);
+    font-size:12px;color:var(--text-dim);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .dropdown-email:empty{display:none;}
+  #profileMenu{top:62px;right:18px;min-width:220px;}
   #navMenu{bottom:78px;left:50%;transform:translateX(-50%);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1067,6 +1075,7 @@
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 20C4 16.6863 7.58172 14 12 14C16.4183 14 20 16.6863 20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
   </button>
   <div class="dropdown" id="profileMenu">
+    <div class="dropdown-email" id="profileEmail"></div>
     <div class="dropdown-item" id="settingsBtn">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
       Configuración
@@ -1718,6 +1727,7 @@ function tryRestoreExecution(){
   viewExecution.style.display = 'block';
   currentView = 'execution';
   renderExecCard();
+  pushNav();
   return true;
 }
 
@@ -2077,7 +2087,47 @@ const viewStore = document.getElementById('view-store');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
-let storeReturnView = 'home';
+
+// ---- Botón "atrás" de Android ----
+// Cada vez que se navega hacia adelante dentro de la app, se agrega una
+// entrada al historial del navegador. Cuando el usuario presiona el botón
+// físico/gesto de "atrás" de Android, el navegador dispara "popstate" —en
+// vez de salir de la app, mostramos la pantalla exacta de la que veníamos.
+// suppressPush evita que, al responder a un "atrás", se vuelva a empujar
+// una entrada nueva (eso rompería la pila y el botón dejaría de funcionar
+// bien la segunda vez que se presiona).
+let suppressPush = false;
+function pushNav(){
+  if(suppressPush) return;
+  try{ history.pushState({ view: currentView }, ''); }catch(e){}
+}
+// Re-muestra la ejecución usando el execList/execIndex que ya está en
+// memoria, sin reconstruirlo desde cero (a diferencia de goToExecution/
+// startTodayFromHome) — así no se pierde el progreso a mitad de sesión si
+// el usuario fue a otra pantalla y volvió con "atrás".
+function showExecutionSilently(){
+  if(execList.length === 0){ goHome(); return; }
+  hideAllViews();
+  viewExecution.style.display = 'block';
+  currentView = 'execution';
+  renderExecCard();
+  window.scrollTo(0,0);
+}
+window.addEventListener('popstate', (e)=>{
+  const view = (e.state && e.state.view) || 'home';
+  suppressPush = true;
+  switch(view){
+    case 'checklist': goToChecklistFromHome(); break;
+    case 'exercises': goToExercises(); break;
+    case 'execution': showExecutionSilently(); break;
+    case 'stats': goToStats(); break;
+    case 'stats-daily': goToStatsDaily(); break;
+    case 'stats-period': goToStatsPeriod(); break;
+    case 'store': goToStore(); break;
+    default: goHome();
+  }
+  suppressPush = false;
+});
 
 function hideAllViews(){
   viewHome.style.display = 'none';
@@ -2088,31 +2138,22 @@ function hideAllViews(){
   viewStatsDaily.style.display = 'none';
   viewStatsPeriod.style.display = 'none';
   viewStore.style.display = 'none';
+  // Limpieza al salir de la Tienda, sin importar por dónde se salga
+  // (botón visible, atrás de Android, o eligiendo otra sección del menú).
+  const storeVideo = document.getElementById('storeVideo');
+  if(storeVideo) storeVideo.pause();
+  const storeFab = document.getElementById('storeFabBtn');
+  if(storeFab) storeFab.style.display = 'flex';
 }
 
 function goToStore(){
-  storeReturnView = currentView;
   hideAllViews();
   viewStore.style.display = 'block';
   currentView = 'store';
   document.getElementById('storeFabBtn').style.display = 'none';
   const video = document.getElementById('storeVideo');
   if(video){ video.currentTime = 0; video.play().catch(()=>{}); }
-}
-
-function goBackFromStore(){
-  const video = document.getElementById('storeVideo');
-  if(video) video.pause();
-  document.getElementById('storeFabBtn').style.display = 'flex';
-  switch(storeReturnView){
-    case 'checklist': goToChecklistFromHome(); break;
-    case 'exercises': goToExercises(); break;
-    case 'execution': if(!tryRestoreExecution()) goHome(); break;
-    case 'stats': goToStats(); break;
-    case 'stats-daily': goToStatsDaily(); break;
-    case 'stats-period': goToStatsPeriod(); break;
-    default: goHome();
-  }
+  pushNav();
 }
 
 function goToStats(){
@@ -2121,6 +2162,7 @@ function goToStats(){
   currentView = 'stats';
   continueBtn.style.visibility = 'hidden';
   window.scrollTo(0,0);
+  pushNav();
 }
 
 function goToStatsDaily(){
@@ -2130,6 +2172,7 @@ function goToStatsDaily(){
   continueBtn.style.visibility = 'hidden';
   renderStatsDaily();
   window.scrollTo(0,0);
+  pushNav();
 }
 
 function goToStatsPeriod(){
@@ -2139,6 +2182,7 @@ function goToStatsPeriod(){
   continueBtn.style.visibility = 'hidden';
   renderStatsPeriod();
   window.scrollTo(0,0);
+  pushNav();
 }
 
 // Historial diario detallado (antes vivía en Inicio) — ahora dentro de
@@ -2220,6 +2264,7 @@ function goHome(){
   continueBtn.style.visibility = 'hidden';
   renderHome();
   window.scrollTo(0,0);
+  pushNav();
 }
 
 function goToChecklistFromHome(){
@@ -2229,6 +2274,7 @@ function goToChecklistFromHome(){
   continueBtn.style.visibility = 'visible';
   continueBtn.innerHTML = `Continuar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   window.scrollTo(0,0);
+  pushNav();
 }
 
 function startTodayFromHome(){
@@ -2239,11 +2285,20 @@ function startTodayFromHome(){
   }
   execIndex = 0;
   cameFromHome = true;
+  prSnapshot = {};
+  prsHitThisSession = {};
+  lastSessionSummary = null;
+  execList.forEach(item=>{
+    const wk = item.subId + '::' + item.exName;
+    const saved = workData[wk];
+    if(saved && saved.peso != null) prSnapshot[wk] = Number(saved.peso);
+  });
   renderExecCard();
   hideAllViews();
   viewExecution.style.display = 'block';
   currentView = 'execution';
   window.scrollTo(0,0);
+  pushNav();
 }
 
 function dayNameFor(subId){
@@ -2462,6 +2517,7 @@ function goToExercises(){
   currentView = 'exercises';
   continueBtn.innerHTML = `Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   window.scrollTo(0,0);
+  pushNav();
 }
 
 function goToExecution(){
@@ -2485,6 +2541,7 @@ function goToExecution(){
   viewExecution.style.display = 'block';
   currentView = 'execution';
   window.scrollTo(0,0);
+  pushNav();
 }
 
 continueBtn.addEventListener('click', async ()=>{
@@ -2503,33 +2560,13 @@ continueBtn.addEventListener('click', async ()=>{
   }
 });
 
-document.getElementById('homeBackBtn').addEventListener('click', goHome);
+document.getElementById('homeBackBtn').addEventListener('click', ()=> history.back());
 
-document.getElementById('backBtn').addEventListener('click', ()=>{
-  hideAllViews();
-  viewChecklist.style.display = 'block';
-  currentView = 'checklist';
-  continueBtn.style.visibility = 'visible';
-  continueBtn.innerHTML = `Continuar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  window.scrollTo(0,0);
-});
+document.getElementById('backBtn').addEventListener('click', ()=> history.back());
 
 document.getElementById('execBackBtn').addEventListener('click', ()=>{
-  hideAllViews();
   clearExecNav();
-  if(cameFromHome){
-    viewHome.style.display = 'block';
-    currentView = 'home';
-    continueBtn.style.visibility = 'hidden';
-    renderHome();
-  } else {
-    viewExercises.style.display = 'block';
-    currentView = 'exercises';
-    continueBtn.style.visibility = 'visible';
-    continueBtn.innerHTML = `Iniciar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  }
-  cameFromHome = false;
-  window.scrollTo(0,0);
+  history.back();
 });
 
 const statusEl = document.getElementById('status');
@@ -2659,18 +2696,18 @@ document.getElementById('navStats').addEventListener('click', ()=>{
   goToStats();
 });
 
-document.getElementById('statsBackBtn').addEventListener('click', goHome);
+document.getElementById('statsBackBtn').addEventListener('click', ()=> history.back());
 document.getElementById('statsDailyBtn').addEventListener('click', goToStatsDaily);
 document.getElementById('statsPeriodBtn').addEventListener('click', goToStatsPeriod);
-document.getElementById('statsDailyBackBtn').addEventListener('click', goToStats);
-document.getElementById('statsPeriodBackBtn').addEventListener('click', goToStats);
+document.getElementById('statsDailyBackBtn').addEventListener('click', ()=> history.back());
+document.getElementById('statsPeriodBackBtn').addEventListener('click', ()=> history.back());
 
 document.getElementById('navStore').addEventListener('click', ()=>{
   closeDropdowns();
   goToStore();
 });
 document.getElementById('storeFabBtn').addEventListener('click', goToStore);
-document.getElementById('storeBackBtn').addEventListener('click', goBackFromStore);
+document.getElementById('storeBackBtn').addEventListener('click', ()=> history.back());
 
 // ---- Temas de color ----
 const THEMES = [
@@ -3056,6 +3093,8 @@ document.getElementById('logoutBtn').addEventListener('click', async ()=>{
 async function onLoggedIn(user){
   currentUser = user;
   authGate.classList.add('hidden');
+  const profileEmail = document.getElementById('profileEmail');
+  if(profileEmail) profileEmail.textContent = user.email || '';
   await loadState();
   if(!tryRestoreExecution()) goHome();
 }
@@ -3064,6 +3103,8 @@ function onLoggedOut(){
   currentUser = null;
   authGate.classList.remove('hidden');
   setAuthMsg('');
+  const profileEmail = document.getElementById('profileEmail');
+  if(profileEmail) profileEmail.textContent = '';
 }
 
 // onAuthStateChange ya dispara una vez al suscribirse (evento INITIAL_SESSION)
