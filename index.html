@@ -906,6 +906,25 @@
     text-transform:uppercase;letter-spacing:.5px;
     margin:0 0 12px;
   }
+  .danger-item{
+    background:var(--panel-2);border:1px solid rgba(229,72,77,.35);
+    border-radius:14px;padding:14px 16px;cursor:pointer;
+  }
+  .danger-item .di-title{font-size:14.5px;font-weight:700;color:#E5484D;margin:0 0 3px;}
+  .danger-item .di-desc{font-size:12px;color:var(--text-dim);margin:0;line-height:1.4;}
+  .delete-explain{font-size:13.5px;color:var(--text-dim);line-height:1.55;margin:0 0 20px;}
+  .delete-btn-danger{
+    width:100%;background:#E5484D;color:#fff;border:none;
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:14.5px;
+    padding:15px;border-radius:12px;cursor:pointer;margin-bottom:10px;
+  }
+  .delete-btn-danger:active{opacity:.85;}
+  .delete-btn-safe{
+    width:100%;background:transparent;color:var(--text);border:1px solid var(--line);
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:14.5px;
+    padding:15px;border-radius:12px;cursor:pointer;
+  }
+  .delete-btn-safe:active{background:var(--panel-2);}
   .theme-grid{
     display:flex;flex-direction:column;gap:8px;
     margin-bottom:6px;
@@ -1176,6 +1195,26 @@
       </div>
 
       <div id="customThemesWrap"></div>
+
+      <p class="settings-section-title" style="margin-top:26px;">Cuenta</p>
+      <div class="danger-item" id="deleteAccountBtn">
+        <p class="di-title">Eliminar cuenta</p>
+        <p class="di-desc">Borra tu cuenta y todos tus datos por completo, o consérvalos para volver más adelante.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-overlay" id="deleteConfirmOverlay">
+    <div class="settings-sheet delete-sheet">
+      <div class="settings-head">
+        <h3>Eliminar cuenta</h3>
+        <button class="modal-close" id="deleteConfirmClose" aria-label="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="delete-explain">Puedes eliminar tu cuenta y todos tus datos por completo ahora mismo (rutina, pesos, historial, y tu acceso con este correo), o simplemente cerrar sesión y guardar todo por si quieres volver más adelante.</p>
+      <button class="delete-btn-danger" id="confirmDeleteDataBtn">Eliminar mi cuenta por completo</button>
+      <button class="delete-btn-safe" id="keepDataBtn">Guardar mis datos</button>
     </div>
   </div>
 
@@ -2969,6 +3008,41 @@ document.getElementById('settingsClose').addEventListener('click', ()=>{
 });
 settingsOverlay.addEventListener('click', (e)=>{
   if(e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+
+// ---- Eliminar cuenta ----
+// Nota importante: esto borra TODOS los datos del usuario (rutina, pesos,
+// historial completo) y cierra su sesión. No borra la cuenta de acceso en
+// sí (correo/contraseña) — eso requiere una llave de administrador de
+// Supabase que nunca debe vivir en el código del navegador, por seguridad.
+const deleteConfirmOverlay = document.getElementById('deleteConfirmOverlay');
+document.getElementById('deleteAccountBtn').addEventListener('click', ()=>{
+  deleteConfirmOverlay.classList.add('open');
+});
+document.getElementById('deleteConfirmClose').addEventListener('click', ()=>{
+  deleteConfirmOverlay.classList.remove('open');
+});
+deleteConfirmOverlay.addEventListener('click', (e)=>{
+  if(e.target === deleteConfirmOverlay) deleteConfirmOverlay.classList.remove('open');
+});
+document.getElementById('keepDataBtn').addEventListener('click', ()=>{
+  deleteConfirmOverlay.classList.remove('open');
+});
+document.getElementById('confirmDeleteDataBtn').addEventListener('click', async ()=>{
+  if(!currentUser) return;
+  const sure = confirm('Esto borra tu cuenta y todos tus datos por completo, de forma permanente. No podrás iniciar sesión de nuevo con este correo ni recuperar nada. ¿Seguro que quieres continuar?');
+  if(!sure) return;
+  try{
+    const { data, error } = await sb.functions.invoke('delete-account');
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    deleteConfirmOverlay.classList.remove('open');
+    settingsOverlay.classList.remove('open');
+    showToast('Tu cuenta fue eliminada.');
+    await sb.auth.signOut();
+  }catch(e){
+    showToast('No se pudo eliminar la cuenta. Intenta de nuevo.');
+  }
 });
 
 // Paleta amplia de colores rápidos para cada selector
