@@ -273,15 +273,17 @@
   .muscle-body-inner{padding:0 14px 14px;display:flex;flex-direction:column;gap:2px;}
 
   .sub{
+    border-bottom:1px solid var(--line);
+  }
+  .sub:last-child{border-bottom:none;}
+  .sub-head{
     display:flex;
     align-items:flex-start;
     gap:12px;
     padding:10px 2px;
-    border-bottom:1px solid var(--line);
     cursor:pointer;
     user-select:none;
   }
-  .sub:last-child{border-bottom:none;}
   .box{
     width:20px;height:20px;min-width:20px;margin-top:1px;
     border-radius:6px;
@@ -298,6 +300,11 @@
   .sub.on .sub-name{color:var(--text);}
   .sub:not(.on) .sub-name{color:var(--text-dim);}
   .sub-desc{font-size:12.5px;color:var(--text-dim);line-height:1.45;margin:0;font-style:italic;}
+  .sub-exercises:empty{display:none;}
+  .sub-exercises{
+    padding:2px 2px 14px 32px;
+    display:flex;flex-direction:column;gap:2px;
+  }
 
   body{padding-bottom:110px;}
 
@@ -389,6 +396,8 @@
   .stats-option:active{transform:scale(.98);}
   .stats-option .so-name{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px;color:var(--text);}
   .stats-option .so-desc{font-size:12.5px;color:var(--text-dim);margin:0;line-height:1.4;}
+  .stats-option.so-with-icon{display:flex;align-items:center;gap:14px;}
+  .stats-option .so-icon{width:22px;height:22px;color:var(--day1);flex-shrink:0;}
 
   .stats-daily-list{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
   .stats-daily-list .history-card{width:auto;}
@@ -1233,17 +1242,20 @@
     <p class="ob-kicker">Bienvenido</p>
     <h2 class="ob-title">¿Cómo quieres empezar?</h2>
     <div class="stats-menu">
-      <div class="stats-option" id="onbRecommendedBtn">
-        <p class="so-name">Rutinas recomendadas</p>
-        <p class="so-desc">Te programamos el día que toca, listo para empezar.</p>
+      <div class="stats-option so-with-icon" id="onbShareBtn">
+        <svg class="so-icon" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M8.6 10.5L15.4 6.5M8.6 13.5L15.4 17.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div>
+          <p class="so-name">Compartir War300</p>
+          <p class="so-desc">Invita a alguien más a entrenar contigo.</p>
+        </div>
       </div>
       <div class="stats-option" id="onbCreateBtn">
         <p class="so-name">Crea tu rutina</p>
         <p class="so-desc">Elige tú mismo qué músculos trabajar hoy.</p>
       </div>
-      <div class="stats-option" id="onbShareBtn">
-        <p class="so-name">Compartir War300</p>
-        <p class="so-desc">Invita a alguien más a entrenar contigo.</p>
+      <div class="stats-option" id="onbRecommendedBtn">
+        <p class="so-name">Rutinas recomendadas</p>
+        <p class="so-desc">Te programamos el día que toca, listo para empezar.</p>
       </div>
     </div>
   </div>
@@ -1572,11 +1584,14 @@ DAYS.forEach(day=>{
 function subRow(s){
   return `
     <div class="sub" data-sub="${s.id}">
-      <div class="box">${checkSvg}</div>
-      <div class="sub-text">
-        <p class="sub-name">${s.name}</p>
-        <p class="sub-desc">${s.desc}</p>
+      <div class="sub-head" data-sub-head="${s.id}">
+        <div class="box">${checkSvg}</div>
+        <div class="sub-text">
+          <p class="sub-name">${s.name}</p>
+          <p class="sub-desc">${s.desc}</p>
+        </div>
       </div>
+      <div class="sub-exercises" id="subEx-${s.id}"></div>
     </div>`;
 }
 
@@ -1620,11 +1635,45 @@ board.querySelectorAll('.muscle-head').forEach(head=>{
   });
 });
 
-board.querySelectorAll('.sub').forEach(el=>{
-  el.addEventListener('click', (e)=>{
+// Al marcar un sub-músculo, se despliega ahí mismo la elección de ejercicio
+// (antes era una pantalla aparte, "Elige tu ejercicio" — ahora todo pasa en
+// una sola pantalla, más rápido para el usuario).
+function renderSubExercises(sub){
+  const container = document.getElementById('subEx-' + sub.id);
+  if(!container) return;
+  const subEl = board.querySelector(`.sub[data-sub="${sub.id}"]`);
+  const isOn = subEl && subEl.classList.contains('on');
+  if(!isOn){ container.innerHTML = ''; return; }
+  const opts = exercisesFor(sub.muscleName, sub.name);
+  if(opts.length === 0){ container.innerHTML = ''; return; }
+  if(!chosenExercise[sub.id]) chosenExercise[sub.id] = opts[0];
+  const picked = chosenExercise[sub.id];
+  container.innerHTML = opts.map(ex => exOptionRow(sub.id, ex, ex === picked)).join('');
+  container.querySelectorAll('.ex-option').forEach(opt=>{
+    opt.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('ver-link')) return;
+      e.stopPropagation();
+      chosenExercise[sub.id] = opt.dataset.ex;
+      persistState(true);
+      renderSubExercises(sub);
+    });
+  });
+  container.querySelectorAll('.ver-link').forEach(link=>{
+    link.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openAnimModal(link.dataset.ver);
+    });
+  });
+}
+
+board.querySelectorAll('.sub-head').forEach(head=>{
+  head.addEventListener('click', (e)=>{
     e.stopPropagation();
-    el.classList.toggle('on');
+    const subEl = head.closest('.sub');
+    const sub = SUB_INDEX[subEl.dataset.sub];
+    subEl.classList.toggle('on');
     persistState(true);
+    renderSubExercises(sub);
   });
 });
 
@@ -2610,7 +2659,7 @@ function goToExecution(){
 
 continueBtn.addEventListener('click', async ()=>{
   if(currentView === 'home'){ if(homeStartAction) homeStartAction(); }
-  else if(currentView === 'checklist') goToExercises();
+  else if(currentView === 'checklist') goToExecution();
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
     commitCurrentCard();
@@ -2707,6 +2756,9 @@ async function loadState(){
         if(row.ejercicio_elegido) chosenExercise[row.work_key] = row.ejercicio_elegido;
       }
     });
+    // Refresca el panel de ejercicios de cada sub-músculo ya marcado, para
+    // que se vea de una vez la elección guardada al recargar la app.
+    Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
     if(themeRaw && themeRaw.startsWith('custom:')){
       const custom = customThemes.find(c => 'custom:'+c.id === themeRaw);
       if(custom) applyCustomTheme(custom, true);
