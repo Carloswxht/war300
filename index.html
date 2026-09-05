@@ -1242,20 +1242,19 @@
     <p class="ob-kicker">Bienvenido</p>
     <h2 class="ob-title">¿Cómo quieres empezar?</h2>
     <div class="stats-menu">
-      <div class="stats-option so-with-icon" id="onbShareBtn">
-        <svg class="so-icon" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M8.6 10.5L15.4 6.5M8.6 13.5L15.4 17.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div class="stats-option so-with-icon" id="onbCreateBtn">
+        <svg class="so-icon" viewBox="0 0 24 24" fill="none"><path d="M9 6H20M9 12H20M9 18H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 6L5 7L7 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12L5 13L7 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 18L5 19L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div>
-          <p class="so-name">Compartir War300</p>
-          <p class="so-desc">Invita a alguien más a entrenar contigo.</p>
+          <p class="so-name">Crea tu rutina</p>
+          <p class="so-desc">Elige tú mismo qué músculos trabajar hoy.</p>
         </div>
       </div>
-      <div class="stats-option" id="onbCreateBtn">
-        <p class="so-name">Crea tu rutina</p>
-        <p class="so-desc">Elige tú mismo qué músculos trabajar hoy.</p>
-      </div>
-      <div class="stats-option" id="onbRecommendedBtn">
-        <p class="so-name">Rutinas recomendadas</p>
-        <p class="so-desc">Te programamos el día que toca, listo para empezar.</p>
+      <div class="stats-option so-with-icon" id="onbRecommendedBtn">
+        <svg class="so-icon" viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14H11L10 21L20 9H12.5L13 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <p class="so-name">Rutinas recomendadas</p>
+          <p class="so-desc">Te programamos el día que toca, listo para empezar.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -1959,8 +1958,10 @@ function renderExecCard(){
         <p>Terminaste todos los ejercicios que elegiste para hoy.</p>
         ${extraHtml}
         <button id="execDoneHome" style="margin-top:22px;width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">Volver al inicio</button>
+        <button id="execDoneShare" style="margin-top:10px;width:100%;background:transparent;color:var(--text-dim);border:1px solid var(--line);font-family:'Archivo',sans-serif;font-weight:700;font-size:13.5px;padding:13px;border-radius:12px;cursor:pointer;">Compartir War300</button>
       </div>`;
     document.getElementById('execDoneHome').addEventListener('click', goHome);
+    document.getElementById('execDoneShare').addEventListener('click', shareWar300);
     return;
   }
   const item = execList[execIndex];
@@ -2832,7 +2833,7 @@ document.getElementById('onbRecommendedBtn').addEventListener('click', async ()=
   persistState(true);
   goToExercises();
 });
-document.getElementById('onbShareBtn').addEventListener('click', async ()=>{
+async function shareWar300(){
   const shareData = {
     title: 'War300',
     text: 'La competencia es contra ti mismo. Únete a War300.',
@@ -2850,7 +2851,7 @@ document.getElementById('onbShareBtn').addEventListener('click', async ()=>{
   }catch(e){
     // el usuario canceló el share — no hacer nada
   }
-});
+}
 document.getElementById('storeBackBtn').addEventListener('click', ()=> history.back());
 
 // ---- Temas de color ----
