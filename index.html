@@ -318,7 +318,7 @@
   .continue-mini svg{width:16px;height:16px;}
   .continue-mini:active{opacity:.6;}
 
-  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store{display:none;}
+  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store, #view-onboarding{display:none;}
 
   .rank-bar{
     background:var(--panel);
@@ -377,6 +377,9 @@
     font-size:12.5px;color:var(--text-dim);
     padding:14px 2px;
   }
+
+  .ob-kicker{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;}
+  .ob-title{font-family:'Archivo Black',sans-serif;font-size:20px;margin:0 0 18px;color:var(--text);}
 
   .stats-menu{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
   .stats-option{
@@ -1185,6 +1188,25 @@
     <div id="welcomeBack"></div>
     <div id="rankBar"></div>
     <div id="homeToday"></div>
+  </div>
+
+  <div id="view-onboarding">
+    <p class="ob-kicker">Bienvenido</p>
+    <h2 class="ob-title">¿Cómo quieres empezar?</h2>
+    <div class="stats-menu">
+      <div class="stats-option" id="onbRecommendedBtn">
+        <p class="so-name">Rutinas recomendadas</p>
+        <p class="so-desc">Te programamos el día que toca, listo para empezar.</p>
+      </div>
+      <div class="stats-option" id="onbCreateBtn">
+        <p class="so-name">Crea tu rutina</p>
+        <p class="so-desc">Elige tú mismo qué músculos trabajar hoy.</p>
+      </div>
+      <div class="stats-option" id="onbShareBtn">
+        <p class="so-name">Compartir War300</p>
+        <p class="so-desc">Invita a alguien más a entrenar contigo.</p>
+      </div>
+    </div>
   </div>
 
   <div id="view-store">
@@ -2084,6 +2106,7 @@ const viewStats = document.getElementById('view-stats');
 const viewStatsDaily = document.getElementById('view-stats-daily');
 const viewStatsPeriod = document.getElementById('view-stats-period');
 const viewStore = document.getElementById('view-store');
+const viewOnboarding = document.getElementById('view-onboarding');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
@@ -2124,6 +2147,7 @@ window.addEventListener('popstate', (e)=>{
     case 'stats-daily': goToStatsDaily(); break;
     case 'stats-period': goToStatsPeriod(); break;
     case 'store': goToStore(); break;
+    case 'onboarding': goToOnboarding(); break;
     default: goHome();
   }
   suppressPush = false;
@@ -2138,6 +2162,7 @@ function hideAllViews(){
   viewStatsDaily.style.display = 'none';
   viewStatsPeriod.style.display = 'none';
   viewStore.style.display = 'none';
+  viewOnboarding.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
   const storeVideo = document.getElementById('storeVideo');
@@ -2383,7 +2408,7 @@ async function renderRankBar(){
           <span class="rank-pct">${pct}%</span>
         </div>
         <div class="rank-track"><div class="rank-fill" style="width:${pct}%;background:${current.color};"></div></div>
-        <p class="rank-next">${next ? `Faltan ${next.min - pct}% para ${next.name}` : 'Rango máximo — así se ve la disciplina.'}</p>
+        <p class="rank-next">${next ? `Sube tu constancia a ${next.min}% para subir de rango` : 'Rango máximo — así se ve la disciplina.'}</p>
       </div>`;
   }catch(e){
     rankBar.innerHTML = '';
@@ -2707,6 +2732,34 @@ document.getElementById('navStore').addEventListener('click', ()=>{
   goToStore();
 });
 document.getElementById('storeFabBtn').addEventListener('click', goToStore);
+
+// ---- Pantalla de bienvenida (solo la primera vez, sin entrenos aún) ----
+document.getElementById('onbCreateBtn').addEventListener('click', goToChecklistFromHome);
+document.getElementById('onbRecommendedBtn').addEventListener('click', async ()=>{
+  const nextAccent = await getNextDayAccent();
+  autoProgramDay(nextAccent);
+  persistState(true);
+  goToExercises();
+});
+document.getElementById('onbShareBtn').addEventListener('click', async ()=>{
+  const shareData = {
+    title: 'War300',
+    text: 'La competencia es contra ti mismo. Únete a War300.',
+    url: location.origin,
+  };
+  try{
+    if(navigator.share){
+      await navigator.share(shareData);
+    } else if(navigator.clipboard){
+      await navigator.clipboard.writeText(location.origin);
+      showToast('Link copiado ✓');
+    } else {
+      showToast('Comparte: ' + location.origin);
+    }
+  }catch(e){
+    // el usuario canceló el share — no hacer nada
+  }
+});
 document.getElementById('storeBackBtn').addEventListener('click', ()=> history.back());
 
 // ---- Temas de color ----
@@ -3096,7 +3149,34 @@ async function onLoggedIn(user){
   const profileEmail = document.getElementById('profileEmail');
   if(profileEmail) profileEmail.textContent = user.email || '';
   await loadState();
-  if(!tryRestoreExecution()) goHome();
+  if(tryRestoreExecution()) return;
+  await routeInitialScreen();
+}
+
+// "Primera vez" = todavía no terminó ningún entreno (0 sesiones guardadas
+// para su cuenta). Este chequeo solo corre una vez, al iniciar sesión —
+// navegar de vuelta a Inicio después no vuelve a mostrar esta pantalla.
+function goToOnboarding(){
+  hideAllViews();
+  viewOnboarding.style.display = 'block';
+  currentView = 'onboarding';
+  continueBtn.style.visibility = 'hidden';
+  window.scrollTo(0,0);
+  pushNav();
+}
+async function routeInitialScreen(){
+  try{
+    const { count, error } = await sb.from('sesiones')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id);
+    if(!error && (count || 0) === 0){
+      goToOnboarding();
+      return;
+    }
+  }catch(e){
+    // si falla la consulta, no bloqueamos el acceso — se va a Inicio normal
+  }
+  goHome();
 }
 
 function onLoggedOut(){
