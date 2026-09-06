@@ -1249,13 +1249,6 @@
           <p class="so-desc">Elige tú mismo qué músculos trabajar hoy.</p>
         </div>
       </div>
-      <div class="stats-option so-with-icon" id="onbRecommendedBtn">
-        <svg class="so-icon" viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14H11L10 21L20 9H12.5L13 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div>
-          <p class="so-name">Rutinas predefinidas</p>
-          <p class="so-desc">Elige una estructura ya armada y síguela a tu ritmo.</p>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -2852,15 +2845,9 @@ document.getElementById('navStore').addEventListener('click', ()=>{
 document.getElementById('storeFabBtn').addEventListener('click', goToStore);
 
 // ---- Pantalla de bienvenida (solo la primera vez, sin entrenos aún) ----
-document.getElementById('onbCreateBtn').addEventListener('click', goToChecklistFromHome);
-document.getElementById('onbRecommendedBtn').addEventListener('click', goToSplitPicker);
+document.getElementById('onbCreateBtn').addEventListener('click', goToSplitPicker);
 document.getElementById('splitBackBtn').addEventListener('click', ()=> history.back());
-document.getElementById('splitPPLBtn').addEventListener('click', async ()=>{
-  const nextAccent = await getNextDayAccent();
-  autoProgramDay(nextAccent);
-  persistState(true);
-  goToExercises();
-});
+document.getElementById('splitPPLBtn').addEventListener('click', goToChecklistFromHome);
 // "Full Body" y "Torso/Pierna" todavía no tienen su propia rotación de
 // ejercicios diseñada — por ahora solo avisan que viene pronto, en vez de
 // fingir una estructura que en realidad sería la misma de Empuje/Tirón/Pierna
