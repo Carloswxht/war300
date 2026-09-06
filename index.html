@@ -426,22 +426,24 @@
   .ob-title{font-family:'Archivo Black',sans-serif;font-size:20px;margin:0 0 18px;color:var(--text);}
 
   .do-explain{font-size:13px;color:var(--text-dim);line-height:1.5;margin:0 0 20px;}
-  .ds-options{padding:0 20px 18px;display:flex;flex-direction:column;gap:8px;}
+  .day-slot{margin-bottom:18px;}
+  .day-slot .ds-label{
+    font-size:11px;font-weight:700;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.6px;margin:0 0 8px;
+  }
   .ds-option{
-    border:1.5px solid var(--accent);
-    color:var(--accent);
-    background:transparent;
-    border-radius:11px;
-    padding:13px 16px;
-    font-family:'Archivo',sans-serif;font-weight:700;font-size:14.5px;
-    cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:8px;cursor:pointer;
+    font-size:14px;font-weight:700;color:var(--text);
   }
-  .ds-option:active{background:var(--accent-dim, var(--panel-2));}
-  .ds-picked-row{
-    display:flex;align-items:center;justify-content:flex-end;
-    padding:0 20px 16px;
+  .ds-option:active{background:var(--panel-2);}
+  .ds-picked{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--panel-2);border:1px solid var(--accent, var(--day1));border-radius:12px;
+    padding:14px 16px;cursor:pointer;
+    font-size:14px;font-weight:700;color:var(--text);
   }
-  .ds-change{font-size:12px;font-weight:700;color:var(--text-dim);cursor:pointer;}
+  .ds-change{font-size:11.5px;font-weight:700;color:var(--text-dim);}
 
   .stats-menu{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
   .stats-option{
@@ -1372,7 +1374,6 @@
       </button>
       <h2>Programa tu entreno</h2>
     </div>
-    <div id="muscleWizardPicker"></div>
     <div class="board" id="board"></div>
   </div>
 
@@ -2698,7 +2699,6 @@ async function renderStatsPeriod(){
 function goHome(){
   hideAllViews();
   clearExecNav();
-  if(dayWizardOrder.length) resetMuscleWizard();
   viewHome.style.display = 'block';
   currentView = 'home';
   continueBtn.style.visibility = 'hidden';
@@ -2707,8 +2707,7 @@ function goHome(){
   pushNav();
 }
 
-function goToChecklistFromHome(keepWizard){
-  if(!keepWizard) resetMuscleWizard();
+function goToChecklistFromHome(){
   hideAllViews();
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
@@ -2999,16 +2998,9 @@ continueBtn.addEventListener('click', async ()=>{
     autoProgramDay(dayOrderPicks[0]);
     Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
     persistState(true);
-    startMuscleWizard(dayOrderPicks);
+    goToChecklistFromHome();
   }
-  else if(currentView === 'checklist'){
-    if(dayWizardOrder.length){
-      const finishedAll = continueMuscleWizard();
-      if(finishedAll) goToExecution();
-    } else {
-      goToExecution();
-    }
-  }
+  else if(currentView === 'checklist') goToExecution();
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
     commitCurrentCard();
@@ -3687,7 +3679,6 @@ function goToSplitPicker(){
 let dayOrderPicks = [null, null, null];
 function goToDayOrder(){
   hideAllViews();
-  resetMuscleWizard();
   dayOrderPicks = [null, null, null];
   viewDayOrder.style.display = 'block';
   currentView = 'day-order';
@@ -3697,40 +3688,28 @@ function goToDayOrder(){
   window.scrollTo(0,0);
   pushNav();
 }
-
 function renderDayOrderSlots(){
   const container = document.getElementById('dayOrderSlots');
   const used = dayOrderPicks.filter(a => a != null);
   let html = '';
   for(let i = 0; i < 3; i++){
-    const num = `0${i + 1}`;
+    const label = `0${i + 1} Día`;
     if(dayOrderPicks[i] != null){
       const dayObj = DAYS.find(d => d.accent === dayOrderPicks[i]);
       html += `
-        <div class="day" data-accent="${dayOrderPicks[i]}">
-          <div class="day-head">
-            <div class="day-num">${num}</div>
-            <div class="day-title">
-              <p class="name">${dayObj ? dayObj.name : ''}</p>
-            </div>
-          </div>
-          <div class="ds-picked-row" data-slot="${i}">
+        <div class="day-slot">
+          <p class="ds-label">${label}</p>
+          <div class="ds-picked" data-slot="${i}">
+            <span>${dayObj ? dayObj.name : ''}</span>
             <span class="ds-change">Cambiar</span>
           </div>
         </div>`;
     } else {
       const remaining = DAYS.filter(d => !used.includes(d.accent));
       html += `
-        <div class="day" style="--accent:var(--text-dim);">
-          <div class="day-head">
-            <div class="day-num">${num}</div>
-            <div class="day-title">
-              <p class="name">Día</p>
-            </div>
-          </div>
-          <div class="ds-options">
-            ${remaining.map(d => `<div class="ds-option" data-slot="${i}" data-accent="${d.accent}" style="--accent:var(--day${d.accent});">${d.name}</div>`).join('')}
-          </div>
+        <div class="day-slot">
+          <p class="ds-label">${label}</p>
+          ${remaining.map(d => `<div class="ds-option" data-slot="${i}" data-accent="${d.accent}">${d.name}</div>`).join('')}
         </div>`;
     }
   }
@@ -3750,111 +3729,13 @@ function renderDayOrderSlots(){
       renderDayOrderSlots();
     });
   });
-  container.querySelectorAll('.ds-picked-row').forEach(el=>{
+  container.querySelectorAll('.ds-picked').forEach(el=>{
     el.addEventListener('click', ()=>{
       const slot = parseInt(el.dataset.slot, 10);
       for(let j = slot; j < 3; j++) dayOrderPicks[j] = null;
       renderDayOrderSlots();
     });
   });
-}
-
-// ---- Un músculo a la vez, dentro del día que se está armando ----
-// Recorre los músculos del día actual de uno en uno: elige cuál trabajar
-// primero (los demás se ocultan temporalmente), muestra sus sub-músculos
-// con su selector de ejercicio ya conocido, y "Continuar" pasa al siguiente
-// músculo restante. Al terminar todos los músculos del día, arranca el
-// entreno de una vez — esto solo programa el día de hoy, no los otros 2.
-let dayWizardOrder = [];
-let muscleWizardRemaining = [];
-let muscleWizardCurrent = null;
-
-function startMuscleWizard(order){
-  goToChecklistFromHome(true);
-  dayWizardOrder = order;
-  const dayObj = DAYS.find(d => d.accent === order[0]);
-  muscleWizardRemaining = dayObj ? dayObj.muscles.map(m => m.name) : [];
-  muscleWizardCurrent = null;
-  advanceMuscleWizard();
-}
-
-function resetMuscleWizard(){
-  dayWizardOrder = [];
-  muscleWizardRemaining = [];
-  muscleWizardCurrent = null;
-  board.querySelectorAll('.day').forEach(d => { d.style.display = ''; });
-  board.querySelectorAll('.muscle').forEach(m => { m.style.display = ''; });
-  const pickerEl = document.getElementById('muscleWizardPicker');
-  if(pickerEl) pickerEl.innerHTML = '';
-}
-
-// Solo se llama cuando SÍ queda al menos un músculo pendiente.
-function advanceMuscleWizard(){
-  if(muscleWizardRemaining.length === 1){
-    muscleWizardCurrent = muscleWizardRemaining[0];
-    muscleWizardRemaining = [];
-  } else {
-    muscleWizardCurrent = null;
-  }
-  renderMuscleWizardUI();
-}
-
-// Se llama al tocar "Continuar" mientras se está programando. Devuelve true
-// si ya se recorrieron todos los músculos de hoy (listo para arrancar).
-function continueMuscleWizard(){
-  if(muscleWizardRemaining.length > 0){
-    advanceMuscleWizard();
-    return false;
-  }
-  resetMuscleWizard();
-  return true;
-}
-
-function renderMuscleWizardUI(){
-  const pickerEl = document.getElementById('muscleWizardPicker');
-  if(!dayWizardOrder.length){ if(pickerEl) pickerEl.innerHTML = ''; return; }
-  const dayObj = DAYS.find(d => d.accent === dayWizardOrder[0]);
-  if(!dayObj) return;
-  board.querySelectorAll('.day').forEach(d=>{
-    d.style.display = (Number(d.dataset.accent) === dayObj.accent) ? 'block' : 'none';
-  });
-  const muscleEls = Array.from(board.querySelectorAll(`.day[data-accent="${dayObj.accent}"] .muscle`));
-  if(muscleWizardCurrent){
-    pickerEl.innerHTML = '';
-    muscleEls.forEach(mEl=>{
-      const label = mEl.querySelector('.muscle-label').textContent;
-      if(label === muscleWizardCurrent){
-        mEl.style.display = 'block';
-        mEl.classList.add('open');
-      } else {
-        mEl.style.display = 'none';
-      }
-    });
-  } else {
-    muscleEls.forEach(mEl=> { mEl.style.display = 'none'; });
-    pickerEl.innerHTML = `
-      <div class="day" data-accent="${dayObj.accent}">
-        <div class="day-head">
-          <div class="day-num">${dayObj.num}</div>
-          <div class="day-title">
-            <p class="name">${dayObj.name}</p>
-            <p class="desc">¿Qué trabajas primero?</p>
-          </div>
-        </div>
-        <div class="ds-options">
-          ${muscleWizardRemaining.map(name => `<div class="ds-option" data-muscle="${name}" style="--accent:var(--day${dayObj.accent});">${name}</div>`).join('')}
-        </div>
-      </div>`;
-    pickerEl.querySelectorAll('.ds-option').forEach(opt=>{
-      opt.addEventListener('click', ()=>{
-        const name = opt.dataset.muscle;
-        muscleWizardRemaining = muscleWizardRemaining.filter(n => n !== name);
-        muscleWizardCurrent = name;
-        renderMuscleWizardUI();
-      });
-    });
-  }
-  window.scrollTo(0,0);
 }
 
 async function routeInitialScreen(){
