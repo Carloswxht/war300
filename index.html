@@ -321,21 +321,10 @@
   .add-ex-row{display:flex;gap:8px;}
   .add-ex-row input{flex:1;min-width:0;}
   .add-ex-video-label{
-    display:flex;align-items:center;justify-content:center;
-    font-size:12.5px;color:var(--text-dim);cursor:pointer;
-    padding:12px;border:1px dashed var(--line);border-radius:9px;
-    text-align:center;
+    display:flex;align-items:center;gap:6px;
+    font-size:12.5px;color:var(--text-dim);cursor:pointer;padding:2px 0;
   }
-  .video-tabs{
-    display:flex;gap:6px;background:var(--panel-2);border-radius:9px;padding:3px;
-  }
-  .video-tab{
-    flex:1;background:transparent;border:none;
-    font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;color:var(--text-dim);
-    padding:8px 6px;border-radius:7px;cursor:pointer;
-  }
-  .video-tab.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.15);}
-  .video-pane{margin-top:2px;}
+  .video-or{font-size:11px;color:var(--text-dim);margin:2px 0 0;text-align:center;}
   .add-ex-save{
     background:var(--accent, var(--text));color:var(--ink);border:none;
     font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;
@@ -1290,6 +1279,13 @@
         <svg class="so-icon" viewBox="0 0 24 24" fill="none"><path d="M9 6H20M9 12H20M9 18H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 6L5 7L7 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12L5 13L7 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 18L5 19L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div>
           <p class="so-name">Crea tu rutina</p>
+          <p class="so-desc">Elige tú mismo qué músculos trabajar hoy.</p>
+        </div>
+      </div>
+      <div class="stats-option so-with-icon" id="onbRecommendedBtn">
+        <svg class="so-icon" viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14H11L10 21L20 9H12.5L13 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <p class="so-name">Rutinas predefinidas</p>
           <p class="so-desc">Elige una estructura ya armada y síguela a tu ritmo.</p>
         </div>
       </div>
@@ -1697,20 +1693,6 @@ board.querySelectorAll('.muscle-head').forEach(head=>{
 // Al marcar un sub-músculo, se despliega ahí mismo la elección de ejercicio
 // (antes era una pantalla aparte, "Elige tu ejercicio" — ahora todo pasa en
 // una sola pantalla, más rápido para el usuario).
-function wireVideoTabs(formEl){
-  formEl.querySelectorAll('.video-tab').forEach(tab=>{
-    tab.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      formEl.querySelectorAll('.video-tab').forEach(t=> t.classList.remove('active'));
-      tab.classList.add('active');
-      const mode = tab.dataset.mode;
-      formEl.querySelectorAll('.video-pane').forEach(pane=>{
-        pane.style.display = pane.dataset.pane === mode ? 'block' : 'none';
-      });
-    });
-  });
-}
-
 function renderSubExercises(sub){
   const container = document.getElementById('subEx-' + sub.id);
   if(!container) return;
@@ -1733,36 +1715,22 @@ function renderSubExercises(sub){
         <input type="text" inputmode="decimal" class="add-ex-peso" placeholder="Peso (kg)">
         <input type="text" inputmode="numeric" class="add-ex-series" placeholder="Series">
       </div>
-      <div class="video-tabs">
-        <button type="button" class="video-tab active" data-mode="file">Subir archivo</button>
-        <button type="button" class="video-tab" data-mode="link">Pegar link</button>
-      </div>
-      <div class="video-pane" data-pane="file">
-        <label class="add-ex-video-label">
-          <span class="add-ex-video-name">Toca para elegir un video</span>
-          <input type="file" accept="video/*" class="add-ex-video" hidden>
-        </label>
-      </div>
-      <div class="video-pane" data-pane="link" style="display:none;">
-        <input type="url" class="add-ex-video-url" placeholder="https://youtube.com/...">
-      </div>
+      <label class="add-ex-video-label">
+        📎 <span class="add-ex-video-name">Subir video del celular</span>
+        <input type="file" accept="video/*" class="add-ex-video" hidden>
+      </label>
+      <p class="video-or">o pega un link (YouTube, etc.)</p>
+      <input type="url" class="add-ex-video-url" placeholder="https://...">
       <button type="button" class="add-ex-save">Guardar ejercicio</button>
     </div>
     <div class="add-ex-form edit-ex-form" style="display:none;">
       <input type="text" class="edit-ex-name" placeholder="Nombre del ejercicio">
-      <div class="video-tabs">
-        <button type="button" class="video-tab active" data-mode="file">Subir archivo</button>
-        <button type="button" class="video-tab" data-mode="link">Pegar link</button>
-      </div>
-      <div class="video-pane" data-pane="file">
-        <label class="add-ex-video-label">
-          <span class="edit-ex-video-name">Toca para elegir un video</span>
-          <input type="file" accept="video/*" class="edit-ex-video" hidden>
-        </label>
-      </div>
-      <div class="video-pane" data-pane="link" style="display:none;">
-        <input type="url" class="edit-ex-video-url" placeholder="https://youtube.com/...">
-      </div>
+      <label class="add-ex-video-label">
+        📎 <span class="edit-ex-video-name">Subir video del celular</span>
+        <input type="file" accept="video/*" class="edit-ex-video" hidden>
+      </label>
+      <p class="video-or">o pega un link (YouTube, etc.)</p>
+      <input type="url" class="edit-ex-video-url" placeholder="https://...">
       <div class="add-ex-row">
         <button type="button" class="edit-ex-save">Guardar cambios</button>
         <button type="button" class="edit-ex-cancel">Cancelar</button>
@@ -1795,11 +1763,10 @@ function renderSubExercises(sub){
     addForm.style.display = addForm.style.display === 'none' ? 'block' : 'none';
   });
   addForm.addEventListener('click', (e)=> e.stopPropagation());
-  wireVideoTabs(addForm);
   const videoInput = addForm.querySelector('.add-ex-video');
   videoInput.addEventListener('change', ()=>{
     const f = videoInput.files && videoInput.files[0];
-    addForm.querySelector('.add-ex-video-name').textContent = f ? f.name : 'Toca para elegir un video';
+    addForm.querySelector('.add-ex-video-name').textContent = f ? f.name : 'Agregar video (opcional)';
   });
   addForm.querySelector('.add-ex-save').addEventListener('click', (e)=>{
     e.stopPropagation();
@@ -1818,13 +1785,12 @@ function renderSubExercises(sub){
       editForm.style.display = 'block';
       editForm.dataset.editingId = match.id;
       editForm.querySelector('.edit-ex-name').value = match.name;
-      editForm.querySelector('.edit-ex-video-name').textContent = match.video_url ? 'Ya tiene video — elige otro para reemplazarlo' : 'Toca para elegir un video';
+      editForm.querySelector('.edit-ex-video-name').textContent = match.video_url ? 'Ya tiene video — elige otro para reemplazarlo' : 'Agregar video (opcional)';
       editForm.querySelector('.edit-ex-video').value = '';
       editForm.querySelector('.edit-ex-video-url').value = '';
     });
   });
   editForm.addEventListener('click', (e)=> e.stopPropagation());
-  wireVideoTabs(editForm);
   const editVideoInput = editForm.querySelector('.edit-ex-video');
   editVideoInput.addEventListener('change', ()=>{
     const f = editVideoInput.files && editVideoInput.files[0];
@@ -3122,7 +3088,8 @@ document.getElementById('navStore').addEventListener('click', ()=>{
 document.getElementById('storeFabBtn').addEventListener('click', goToStore);
 
 // ---- Pantalla de bienvenida (solo la primera vez, sin entrenos aún) ----
-document.getElementById('onbCreateBtn').addEventListener('click', goToSplitPicker);
+document.getElementById('onbCreateBtn').addEventListener('click', goToChecklistFromHome);
+document.getElementById('onbRecommendedBtn').addEventListener('click', goToSplitPicker);
 document.getElementById('splitBackBtn').addEventListener('click', ()=> history.back());
 document.getElementById('splitPPLBtn').addEventListener('click', async ()=>{
   const nextAccent = await getNextDayAccent();
