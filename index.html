@@ -425,26 +425,6 @@
   .ob-kicker{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;}
   .ob-title{font-family:'Archivo Black',sans-serif;font-size:20px;margin:0 0 18px;color:var(--text);}
 
-  .do-explain{font-size:13px;color:var(--text-dim);line-height:1.5;margin:0 0 20px;}
-  .day-slot{margin-bottom:18px;}
-  .day-slot .ds-label{
-    font-size:11px;font-weight:700;color:var(--text-dim);
-    text-transform:uppercase;letter-spacing:.6px;margin:0 0 8px;
-  }
-  .ds-option{
-    background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:14px 16px;margin-bottom:8px;cursor:pointer;
-    font-size:14px;font-weight:700;color:var(--text);
-  }
-  .ds-option:active{background:var(--panel-2);}
-  .ds-picked{
-    display:flex;align-items:center;justify-content:space-between;
-    background:var(--panel-2);border:1px solid var(--accent, var(--day1));border-radius:12px;
-    padding:14px 16px;cursor:pointer;
-    font-size:14px;font-weight:700;color:var(--text);
-  }
-  .ds-change{font-size:11.5px;font-weight:700;color:var(--text-dim);}
-
   .stats-menu{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
   .stats-option{
     background:var(--panel);border:1px solid var(--line);border-radius:14px;
@@ -452,12 +432,6 @@
   }
   .stats-option:active{transform:scale(.98);}
   .stats-option .so-name{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px;color:var(--text);}
-  .stats-option .so-days{
-    display:inline-block;
-    font-size:11px;font-weight:700;color:var(--accent, var(--day1));
-    background:var(--panel-2);border-radius:6px;
-    padding:3px 8px;margin:0 0 8px;
-  }
   .stats-option .so-desc{font-size:12.5px;color:var(--text-dim);margin:0;line-height:1.4;}
   .stats-option.so-with-icon{display:flex;align-items:center;gap:14px;}
   .stats-option .so-icon{width:22px;height:22px;color:var(--day1);flex-shrink:0;}
@@ -1332,31 +1306,17 @@
     <div class="stats-menu">
       <div class="stats-option" id="splitFullBodyBtn">
         <p class="so-name">Full Body</p>
-        <p class="so-days">3 días/semana</p>
         <p class="so-desc">Todo el cuerpo en cada sesión. Ideal si tienes poco tiempo o estás empezando.</p>
       </div>
       <div class="stats-option" id="splitUpperLowerBtn">
         <p class="so-name">Torso / Pierna</p>
-        <p class="so-days">4 días/semana</p>
         <p class="so-desc">Divide tren superior e inferior — más volumen por grupo, buena recuperación.</p>
       </div>
       <div class="stats-option" id="splitPPLBtn">
         <p class="so-name">Empuje / Tirón / Pierna</p>
-        <p class="so-days">3 días/semana (o 6 rotando dos veces)</p>
         <p class="so-desc">Agrupa por función — empuje, tirón y pierna, sin interferencia entre sesiones.</p>
       </div>
     </div>
-  </div>
-
-  <div id="view-day-order">
-    <div class="ex-topbar">
-      <button class="back-btn" id="dayOrderBackBtn" aria-label="Volver">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <h2>Elige tu orden</h2>
-    </div>
-    <p class="do-explain">Arma en qué orden quieres hacer tus 3 días. Este orden queda guardado — así se repite cada semana.</p>
-    <div id="dayOrderSlots"></div>
   </div>
 
   <div id="view-store">
@@ -2517,7 +2477,6 @@ const viewStatsPeriod = document.getElementById('view-stats-period');
 const viewStore = document.getElementById('view-store');
 const viewOnboarding = document.getElementById('view-onboarding');
 const viewSplitPicker = document.getElementById('view-split-picker');
-const viewDayOrder = document.getElementById('view-day-order');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
@@ -2560,7 +2519,6 @@ window.addEventListener('popstate', (e)=>{
     case 'store': goToStore(); break;
     case 'onboarding': goToOnboarding(); break;
     case 'split-picker': goToSplitPicker(); break;
-    case 'day-order': goToDayOrder(); break;
     default: goHome();
   }
   suppressPush = false;
@@ -2577,7 +2535,6 @@ function hideAllViews(){
   viewStore.style.display = 'none';
   viewOnboarding.style.display = 'none';
   viewSplitPicker.style.display = 'none';
-  viewDayOrder.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
   const storeVideo = document.getElementById('storeVideo');
@@ -2748,20 +2705,17 @@ function dayNameFor(subId){
 
 // La rutina rota sin parar entre los 3 días principales (Día 4 es aparte, opcional)
 async function getNextDayAccent(){
-  const order = (customDayOrder && customDayOrder.length === 3) ? customDayOrder : [1,2,3];
-  if(!currentUser) return order[0];
+  if(!currentUser) return 1;
   try{
     const { data, error } = await sb.from('sesiones')
       .select('dia').eq('user_id', currentUser.id)
       .order('created_at', { ascending:false }).limit(1);
     if(error) throw error;
     const last = data && data[0] ? data[0].dia : null;
-    if(!last) return order[0];
-    const idx = order.indexOf(last);
-    if(idx === -1) return order[0];
-    return order[(idx + 1) % 3];
+    if(!last) return 1;
+    return (last % 3) + 1;
   }catch(e){
-    return order[0];
+    return 1;
   }
 }
 
@@ -2989,17 +2943,6 @@ function goToExecution(){
 
 continueBtn.addEventListener('click', async ()=>{
   if(currentView === 'home'){ if(homeStartAction) homeStartAction(); }
-  else if(currentView === 'day-order'){
-    if(!dayOrderPicks.every(a => a != null)){
-      showToast('Elige los 3 días antes de continuar.');
-      return;
-    }
-    await saveDayOrder(dayOrderPicks);
-    autoProgramDay(dayOrderPicks[0]);
-    Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
-    persistState(true);
-    goToChecklistFromHome();
-  }
   else if(currentView === 'checklist') goToExecution();
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
@@ -3087,8 +3030,6 @@ async function loadState(){
         themeRaw = row.series;
       } else if(row.work_key === '__custom_themes__'){
         try{ customThemes = JSON.parse(row.reps || '[]'); }catch(e){ customThemes = []; }
-      } else if(row.work_key === '__day_order__'){
-        try{ customDayOrder = JSON.parse(row.series || 'null'); }catch(e){ customDayOrder = null; }
       } else if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
@@ -3183,8 +3124,13 @@ document.getElementById('storeFabBtn').addEventListener('click', goToStore);
 // ---- Pantalla de bienvenida (solo la primera vez, sin entrenos aún) ----
 document.getElementById('onbCreateBtn').addEventListener('click', goToSplitPicker);
 document.getElementById('splitBackBtn').addEventListener('click', ()=> history.back());
-document.getElementById('splitPPLBtn').addEventListener('click', goToDayOrder);
-document.getElementById('dayOrderBackBtn').addEventListener('click', ()=> history.back());
+document.getElementById('splitPPLBtn').addEventListener('click', async ()=>{
+  const nextAccent = await getNextDayAccent();
+  autoProgramDay(nextAccent);
+  Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
+  persistState(true);
+  goToChecklistFromHome();
+});
 // "Full Body" y "Torso/Pierna" todavía no tienen su propia rotación de
 // ejercicios diseñada — por ahora solo avisan que viene pronto, en vez de
 // fingir una estructura que en realidad sería la misma de Empuje/Tirón/Pierna
@@ -3248,7 +3194,6 @@ const THEMES = [
 const ALL_THEME_VARS = ['--ink','--panel','--panel-2','--line','--text','--text-dim','--day1','--day1-dim','--day2','--day2-dim','--day3','--day3-dim'];
 let currentThemeId = 'theme-dark';
 let customThemes = []; // [{id, name, ink, day1, day2, day3}]
-let customDayOrder = null; // [accent, accent, accent] — orden que el usuario armó para Empuje/Tirón/Pierna
 
 // -- utilidades de color --
 function hexToRgb(hex){
@@ -3386,18 +3331,6 @@ async function saveThemePref(){
     );
   }catch(e){
     // si falla, el tema igual se aplica visualmente, solo no persiste
-  }
-}
-
-async function saveDayOrder(order){
-  if(!currentUser) return;
-  try{
-    await sb.from('progreso').upsert(
-      { user_id: currentUser.id, work_key: '__day_order__', series: JSON.stringify(order) },
-      { onConflict: 'user_id,work_key' }
-    );
-  }catch(e){
-    // si falla, la rotación usa el orden por defecto (1,2,3), no rompe nada
   }
 }
 
@@ -3674,70 +3607,6 @@ function goToSplitPicker(){
   window.scrollTo(0,0);
   pushNav();
 }
-
-// ---- Elige tu orden (Empuje / Tirón / Pierna) ----
-let dayOrderPicks = [null, null, null];
-function goToDayOrder(){
-  hideAllViews();
-  dayOrderPicks = [null, null, null];
-  viewDayOrder.style.display = 'block';
-  currentView = 'day-order';
-  continueBtn.style.visibility = 'visible';
-  continueBtn.innerHTML = `Continuar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  renderDayOrderSlots();
-  window.scrollTo(0,0);
-  pushNav();
-}
-function renderDayOrderSlots(){
-  const container = document.getElementById('dayOrderSlots');
-  const used = dayOrderPicks.filter(a => a != null);
-  let html = '';
-  for(let i = 0; i < 3; i++){
-    const label = `0${i + 1} Día`;
-    if(dayOrderPicks[i] != null){
-      const dayObj = DAYS.find(d => d.accent === dayOrderPicks[i]);
-      html += `
-        <div class="day-slot">
-          <p class="ds-label">${label}</p>
-          <div class="ds-picked" data-slot="${i}">
-            <span>${dayObj ? dayObj.name : ''}</span>
-            <span class="ds-change">Cambiar</span>
-          </div>
-        </div>`;
-    } else {
-      const remaining = DAYS.filter(d => !used.includes(d.accent));
-      html += `
-        <div class="day-slot">
-          <p class="ds-label">${label}</p>
-          ${remaining.map(d => `<div class="ds-option" data-slot="${i}" data-accent="${d.accent}">${d.name}</div>`).join('')}
-        </div>`;
-    }
-  }
-  container.innerHTML = html;
-  container.querySelectorAll('.ds-option').forEach(opt=>{
-    opt.addEventListener('click', ()=>{
-      const slot = parseInt(opt.dataset.slot, 10);
-      const accent = parseInt(opt.dataset.accent, 10);
-      dayOrderPicks[slot] = accent;
-      // Si solo queda un día disponible, se asigna solo al último cupo.
-      const usedNow = dayOrderPicks.filter(a => a != null);
-      if(usedNow.length === 2){
-        const lastAccent = DAYS.map(d => d.accent).find(a => !usedNow.includes(a));
-        const lastEmptyIdx = dayOrderPicks.findIndex(a => a == null);
-        if(lastEmptyIdx !== -1) dayOrderPicks[lastEmptyIdx] = lastAccent;
-      }
-      renderDayOrderSlots();
-    });
-  });
-  container.querySelectorAll('.ds-picked').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const slot = parseInt(el.dataset.slot, 10);
-      for(let j = slot; j < 3; j++) dayOrderPicks[j] = null;
-      renderDayOrderSlots();
-    });
-  });
-}
-
 async function routeInitialScreen(){
   try{
     const { count, error } = await sb.from('sesiones')
