@@ -426,24 +426,35 @@
   .ob-title{font-family:'Archivo Black',sans-serif;font-size:20px;margin:0 0 18px;color:var(--text);}
 
   .do-explain{font-size:13px;color:var(--text-dim);line-height:1.5;margin:0 0 20px;}
-  .day-slot{margin-bottom:18px;}
-  .day-slot .ds-label{
-    font-size:11px;font-weight:700;color:var(--text-dim);
-    text-transform:uppercase;letter-spacing:.6px;margin:0 0 8px;
-  }
+  .ds-options{padding:0 20px 18px;display:flex;flex-direction:column;gap:8px;}
   .ds-option{
-    background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:14px 16px;margin-bottom:8px;cursor:pointer;
-    font-size:14px;font-weight:700;color:var(--text);
+    border:1.5px solid var(--accent);
+    color:var(--accent);
+    background:transparent;
+    border-radius:11px;
+    padding:13px 16px;
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:14.5px;
+    cursor:pointer;
   }
-  .ds-option:active{background:var(--panel-2);}
-  .ds-picked{
-    display:flex;align-items:center;justify-content:space-between;
-    background:var(--panel-2);border:1px solid var(--accent, var(--day1));border-radius:12px;
-    padding:14px 16px;cursor:pointer;
-    font-size:14px;font-weight:700;color:var(--text);
+  .ds-option:active{background:var(--accent-dim, var(--panel-2));}
+  .ds-picked-row{
+    display:flex;align-items:center;justify-content:flex-end;
+    padding:0 20px 16px;
   }
-  .ds-change{font-size:11.5px;font-weight:700;color:var(--text-dim);}
+  .ds-change{font-size:12px;font-weight:700;color:var(--text-dim);cursor:pointer;}
+
+  .wizard-done-btn-primary{
+    width:100%;background:var(--day1);color:var(--ink);border:none;
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;
+    padding:16px;border-radius:12px;cursor:pointer;margin-bottom:10px;
+  }
+  .wizard-done-btn-primary:active{opacity:.85;}
+  .wizard-done-btn-secondary{
+    width:100%;background:transparent;color:var(--text);border:1px solid var(--line);
+    font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;
+    padding:16px;border-radius:12px;cursor:pointer;
+  }
+  .wizard-done-btn-secondary:active{background:var(--panel-2);}
 
   .stats-menu{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
   .stats-option{
@@ -1359,6 +1370,14 @@
     <div id="dayOrderSlots"></div>
   </div>
 
+  <div id="view-wizard-done">
+    <p class="ob-kicker">Rutina programada</p>
+    <h2 class="ob-title">¿Iniciamos hoy?</h2>
+    <p class="do-explain">Tus 3 días quedaron listos, con sus ejercicios ya elegidos.</p>
+    <button id="wizardDoneStart" class="wizard-done-btn-primary">Iniciar hoy</button>
+    <button id="wizardDoneFinish" class="wizard-done-btn-secondary">Finalizar</button>
+  </div>
+
   <div id="view-store">
     <video id="storeVideo" src="tienda-video.mp4" autoplay muted loop playsinline></video>
     <button class="store-back" id="storeBackBtn" aria-label="Volver">
@@ -1374,6 +1393,7 @@
       </button>
       <h2>Programa tu entreno</h2>
     </div>
+    <div id="muscleWizardPicker"></div>
     <div class="board" id="board"></div>
   </div>
 
@@ -2518,6 +2538,7 @@ const viewStore = document.getElementById('view-store');
 const viewOnboarding = document.getElementById('view-onboarding');
 const viewSplitPicker = document.getElementById('view-split-picker');
 const viewDayOrder = document.getElementById('view-day-order');
+const viewWizardDone = document.getElementById('view-wizard-done');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
@@ -2561,6 +2582,7 @@ window.addEventListener('popstate', (e)=>{
     case 'onboarding': goToOnboarding(); break;
     case 'split-picker': goToSplitPicker(); break;
     case 'day-order': goToDayOrder(); break;
+    case 'wizard-done': goToWizardDone(); break;
     default: goHome();
   }
   suppressPush = false;
@@ -2578,6 +2600,7 @@ function hideAllViews(){
   viewOnboarding.style.display = 'none';
   viewSplitPicker.style.display = 'none';
   viewDayOrder.style.display = 'none';
+  viewWizardDone.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
   const storeVideo = document.getElementById('storeVideo');
@@ -2699,6 +2722,7 @@ async function renderStatsPeriod(){
 function goHome(){
   hideAllViews();
   clearExecNav();
+  if(dayWizardOrder.length) resetMuscleWizard();
   viewHome.style.display = 'block';
   currentView = 'home';
   continueBtn.style.visibility = 'hidden';
@@ -2707,7 +2731,8 @@ function goHome(){
   pushNav();
 }
 
-function goToChecklistFromHome(){
+function goToChecklistFromHome(keepWizard){
+  if(!keepWizard) resetMuscleWizard();
   hideAllViews();
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
@@ -2998,9 +3023,16 @@ continueBtn.addEventListener('click', async ()=>{
     autoProgramDay(dayOrderPicks[0]);
     Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
     persistState(true);
-    goToChecklistFromHome();
+    startMuscleWizard(dayOrderPicks);
   }
-  else if(currentView === 'checklist') goToExecution();
+  else if(currentView === 'checklist'){
+    if(dayWizardOrder.length){
+      const finishedAll = continueMuscleWizard();
+      if(finishedAll) goToWizardDone();
+    } else {
+      goToExecution();
+    }
+  }
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
     commitCurrentCard();
@@ -3185,6 +3217,14 @@ document.getElementById('onbCreateBtn').addEventListener('click', goToSplitPicke
 document.getElementById('splitBackBtn').addEventListener('click', ()=> history.back());
 document.getElementById('splitPPLBtn').addEventListener('click', goToDayOrder);
 document.getElementById('dayOrderBackBtn').addEventListener('click', ()=> history.back());
+document.getElementById('wizardDoneStart').addEventListener('click', ()=>{
+  showToast('¡Tu semana quedó programada! 💪');
+  goToExecution();
+});
+document.getElementById('wizardDoneFinish').addEventListener('click', ()=>{
+  showToast('¡Tu semana quedó programada! 💪');
+  goHome();
+});
 // "Full Body" y "Torso/Pierna" todavía no tienen su propia rotación de
 // ejercicios diseñada — por ahora solo avisan que viene pronto, en vez de
 // fingir una estructura que en realidad sería la misma de Empuje/Tirón/Pierna
@@ -3679,6 +3719,7 @@ function goToSplitPicker(){
 let dayOrderPicks = [null, null, null];
 function goToDayOrder(){
   hideAllViews();
+  resetMuscleWizard();
   dayOrderPicks = [null, null, null];
   viewDayOrder.style.display = 'block';
   currentView = 'day-order';
@@ -3688,28 +3729,48 @@ function goToDayOrder(){
   window.scrollTo(0,0);
   pushNav();
 }
+
+function goToWizardDone(){
+  hideAllViews();
+  viewWizardDone.style.display = 'block';
+  currentView = 'wizard-done';
+  continueBtn.style.visibility = 'hidden';
+  window.scrollTo(0,0);
+  pushNav();
+}
 function renderDayOrderSlots(){
   const container = document.getElementById('dayOrderSlots');
   const used = dayOrderPicks.filter(a => a != null);
   let html = '';
   for(let i = 0; i < 3; i++){
-    const label = `0${i + 1} Día`;
+    const num = `0${i + 1}`;
     if(dayOrderPicks[i] != null){
       const dayObj = DAYS.find(d => d.accent === dayOrderPicks[i]);
       html += `
-        <div class="day-slot">
-          <p class="ds-label">${label}</p>
-          <div class="ds-picked" data-slot="${i}">
-            <span>${dayObj ? dayObj.name : ''}</span>
+        <div class="day" data-accent="${dayOrderPicks[i]}">
+          <div class="day-head">
+            <div class="day-num">${num}</div>
+            <div class="day-title">
+              <p class="name">${dayObj ? dayObj.name : ''}</p>
+            </div>
+          </div>
+          <div class="ds-picked-row" data-slot="${i}">
             <span class="ds-change">Cambiar</span>
           </div>
         </div>`;
     } else {
       const remaining = DAYS.filter(d => !used.includes(d.accent));
       html += `
-        <div class="day-slot">
-          <p class="ds-label">${label}</p>
-          ${remaining.map(d => `<div class="ds-option" data-slot="${i}" data-accent="${d.accent}">${d.name}</div>`).join('')}
+        <div class="day" style="--accent:var(--text-dim);">
+          <div class="day-head">
+            <div class="day-num">${num}</div>
+            <div class="day-title">
+              <p class="name">Día</p>
+            </div>
+          </div>
+          <div class="ds-options">
+            ${remaining.map(d => `<div class="ds-option" data-slot="${i}" data-accent="${d.accent}" style="--accent:var(--day${d.accent});">${d.name}</div>`).join('')}
+          </div>
         </div>`;
     }
   }
@@ -3729,13 +3790,142 @@ function renderDayOrderSlots(){
       renderDayOrderSlots();
     });
   });
-  container.querySelectorAll('.ds-picked').forEach(el=>{
+  container.querySelectorAll('.ds-picked-row').forEach(el=>{
     el.addEventListener('click', ()=>{
       const slot = parseInt(el.dataset.slot, 10);
       for(let j = slot; j < 3; j++) dayOrderPicks[j] = null;
       renderDayOrderSlots();
     });
   });
+}
+
+// ---- Un músculo a la vez, dentro del día que se está armando ----
+// Recorre los músculos del día actual de uno en uno: elige cuál trabajar
+// primero (los demás se ocultan temporalmente), muestra sus sub-músculos
+// con su selector de ejercicio ya conocido, y "Continuar" pasa al siguiente
+// músculo restante. Al terminar todos los músculos de un día, pasa a
+// programar el siguiente día del orden elegido — sigue siendo solo
+// programar, no se ejecuta ningún entreno todavía. Al terminar de programar
+// los 3 días, vuelve a Inicio (el día 1 del orden queda listo para "Hoy").
+let dayWizardOrder = [];
+let dayWizardIdx = 0;
+let muscleWizardRemaining = [];
+let muscleWizardCurrent = null;
+
+function startMuscleWizard(order){
+  goToChecklistFromHome(true);
+  dayWizardOrder = order;
+  dayWizardIdx = 0;
+  beginMuscleWizardForCurrentDay();
+}
+
+function beginMuscleWizardForCurrentDay(){
+  const dayObj = DAYS.find(d => d.accent === dayWizardOrder[dayWizardIdx]);
+  muscleWizardRemaining = dayObj ? dayObj.muscles.map(m => m.name) : [];
+  muscleWizardCurrent = null;
+  advanceMuscleWizard();
+}
+
+function resetMuscleWizard(){
+  dayWizardOrder = [];
+  dayWizardIdx = 0;
+  muscleWizardRemaining = [];
+  muscleWizardCurrent = null;
+  board.querySelectorAll('.day').forEach(d => { d.style.display = ''; });
+  board.querySelectorAll('.muscle').forEach(m => { m.style.display = ''; });
+  const pickerEl = document.getElementById('muscleWizardPicker');
+  if(pickerEl) pickerEl.innerHTML = '';
+}
+
+// Solo se llama cuando SÍ queda al menos un músculo pendiente de este día
+// (el llamador decide cuándo pasar de día en vez de esto).
+function advanceMuscleWizard(){
+  if(muscleWizardRemaining.length === 1){
+    muscleWizardCurrent = muscleWizardRemaining[0];
+    muscleWizardRemaining = [];
+  } else {
+    muscleWizardCurrent = null;
+  }
+  renderMuscleWizardUI();
+}
+
+// Se llama al tocar "Continuar" mientras se está programando. Devuelve true
+// si con esto se terminó de programar TODO (los 3 días), para que quien la
+// llama sepa que ya puede volver a Inicio.
+function continueMuscleWizard(){
+  if(muscleWizardRemaining.length > 0){
+    advanceMuscleWizard();
+    return false;
+  }
+  if(dayWizardIdx < dayWizardOrder.length - 1){
+    dayWizardIdx++;
+    const nextAccent = dayWizardOrder[dayWizardIdx];
+    autoProgramDay(nextAccent);
+    Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
+    persistState(true);
+    beginMuscleWizardForCurrentDay();
+    return false;
+  }
+  // Se terminó de programar el último día. Deja marcado (checked) solo el
+  // primer día del orden elegido — el de "hoy" — para que quede listo desde
+  // Inicio. Los otros dos días se quedan con sus ejercicios ya guardados
+  // (chosenExercise no se toca), listos para cuando les toque, solo que no
+  // aparecen como "checked" todavía.
+  const todayDayObj = DAYS.find(d => d.accent === dayWizardOrder[0]);
+  board.querySelectorAll('.sub').forEach(el=>{
+    const sub = SUB_INDEX[el.dataset.sub];
+    if(sub && todayDayObj && sub.dayName !== todayDayObj.name) el.classList.remove('on');
+  });
+  persistState(true);
+  resetMuscleWizard();
+  return true;
+}
+
+function renderMuscleWizardUI(){
+  const pickerEl = document.getElementById('muscleWizardPicker');
+  if(!dayWizardOrder.length){ if(pickerEl) pickerEl.innerHTML = ''; return; }
+  const dayObj = DAYS.find(d => d.accent === dayWizardOrder[dayWizardIdx]);
+  if(!dayObj) return;
+  board.querySelectorAll('.day').forEach(d=>{
+    d.style.display = (Number(d.dataset.accent) === dayObj.accent) ? 'block' : 'none';
+  });
+  const muscleEls = Array.from(board.querySelectorAll(`.day[data-accent="${dayObj.accent}"] .muscle`));
+  if(muscleWizardCurrent){
+    pickerEl.innerHTML = '';
+    muscleEls.forEach(mEl=>{
+      const label = mEl.querySelector('.muscle-label').textContent;
+      if(label === muscleWizardCurrent){
+        mEl.style.display = 'block';
+        mEl.classList.add('open');
+      } else {
+        mEl.style.display = 'none';
+      }
+    });
+  } else {
+    muscleEls.forEach(mEl=> { mEl.style.display = 'none'; });
+    pickerEl.innerHTML = `
+      <div class="day" data-accent="${dayObj.accent}">
+        <div class="day-head">
+          <div class="day-num">${dayObj.num}</div>
+          <div class="day-title">
+            <p class="name">${dayObj.name}</p>
+            <p class="desc">¿Qué trabajas primero?</p>
+          </div>
+        </div>
+        <div class="ds-options">
+          ${muscleWizardRemaining.map(name => `<div class="ds-option" data-muscle="${name}" style="--accent:var(--day${dayObj.accent});">${name}</div>`).join('')}
+        </div>
+      </div>`;
+    pickerEl.querySelectorAll('.ds-option').forEach(opt=>{
+      opt.addEventListener('click', ()=>{
+        const name = opt.dataset.muscle;
+        muscleWizardRemaining = muscleWizardRemaining.filter(n => n !== name);
+        muscleWizardCurrent = name;
+        renderMuscleWizardUI();
+      });
+    });
+  }
+  window.scrollTo(0,0);
 }
 
 async function routeInitialScreen(){
