@@ -217,6 +217,8 @@
   }
 
   .board{position:relative;}
+  .board-hint{font-size:13px;color:var(--text-dim);margin:0 0 16px;}
+  .day-title-arrow{display:flex;align-items:center;height:100%;color:var(--text-dim);}
   .day{
     background:var(--panel);
     border:1px solid var(--line);
@@ -1290,6 +1292,7 @@
       </button>
       <h2>Programa tu entreno</h2>
     </div>
+    <p class="board-hint">Selecciona lo que quieres hacer cada día.</p>
     <div class="board" id="board"></div>
   </div>
 
@@ -1625,7 +1628,7 @@ function muscleBlock(m){
     </div>`;
 }
 
-const DAY_ORDINALS = ['primer','segundo','tercer'];
+const arrowDownSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function dayCard(day, slotNum){
   const num = String(slotNum).padStart(2,'0');
@@ -1634,8 +1637,8 @@ function dayCard(day, slotNum){
       <div class="day-head">
         <div class="day-num">${num}</div>
         <div class="day-title">
-          <p class="name">${day.name}</p>
-          <p class="desc">${day.desc} <span class="ver-link day-change-link" data-slot="${slotNum}" style="cursor:pointer;">Cambiar</span></p>
+          <p class="name">${day.name} <span class="ver-link day-change-link" data-slot="${slotNum}" style="cursor:pointer;">Cambiar</span></p>
+          <p class="desc">${day.desc}</p>
         </div>
       </div>
       <div class="muscles">
@@ -1644,13 +1647,12 @@ function dayCard(day, slotNum){
     </div>`;
 }
 
-// Tarjeta de "elige qué entrenar" para un día sin asignar todavía — mismas
-// filas con el formato de los músculos (fondo, chevron), pero cada fila es
-// una de las 3 rutinas disponibles. Solo muestra las que ningún otro día
-// haya tomado ya.
+// Tarjeta de un día sin asignar todavía: en vez del nombre de rutina, una
+// flechita apuntando a las opciones de abajo. Esas opciones usan el mismo
+// formato de fila que los músculos (fondo, chevron) y solo muestran las
+// rutinas que ningún otro día haya tomado ya.
 function dayPickerCard(slotNum, availableAccents){
   const num = String(slotNum).padStart(2,'0');
-  const ordinal = DAY_ORDINALS[slotNum - 1] || 'primer';
   const options = availableAccents.map(accent=>{
     const d = DAYS.find(x=>x.accent === accent);
     return `
@@ -1665,9 +1667,7 @@ function dayPickerCard(slotNum, availableAccents){
     <div class="day">
       <div class="day-head">
         <div class="day-num" style="color:var(--text-dim);">${num}</div>
-        <div class="day-title">
-          <p class="name">Toca lo que quieres entrenar el ${ordinal} día</p>
-        </div>
+        <div class="day-title day-title-arrow">${arrowDownSvg}</div>
       </div>
       <div class="muscles">
         ${options}
