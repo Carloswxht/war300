@@ -219,7 +219,7 @@
   .board{position:relative;}
   .board-hint{font-size:13px;color:var(--text-dim);margin:0 0 16px;}
   .day-title-arrow{display:flex;align-items:center;height:100%;color:var(--text-dim);}
-  .picker-row-hint{font-size:11.5px;font-weight:700;color:var(--text-dim);margin-right:8px;flex-shrink:0;}
+  .picker-row-dot{width:10px;height:10px;border-radius:50%;margin-right:10px;flex-shrink:0;}
   .day{
     background:var(--panel);
     border:1px solid var(--line);
@@ -1683,13 +1683,13 @@ function dayOrderAssignedCard(day, slotNum){
 // Tarjeta de un día sin asignar todavía: en vez del nombre de rutina, una
 // flechita apuntando a las opciones de abajo. Muestra SIEMPRE las 3
 // rutinas (no solo las libres) — si una ya está en otro día, se avisa con
-// una etiqueta, y tocarla intercambia los dos días en vez de dejar al otro
-// sin nada. Se usa solo en "Elige el orden".
+// un punto del color de esa rutina, y tocarla intercambia los dos días en
+// vez de dejar al otro sin nada. Se usa solo en "Elige el orden".
 function dayPickerCard(slotNum){
   const num = String(slotNum).padStart(2,'0');
   const options = DAYS.map(d=>{
     const heldSlot = Object.keys(dayAssignment).find(s => Number(s) !== slotNum && dayAssignment[s] === d.accent);
-    const hint = heldSlot ? `<div class="picker-row-hint">Día ${String(heldSlot).padStart(2,'0')}</div>` : '';
+    const hint = heldSlot ? `<span class="picker-row-dot" style="background:var(--day${d.accent});"></span>` : '';
     return `
       <div class="muscle picker-row" data-slot="${slotNum}" data-accent="${d.accent}">
         <div class="muscle-head">
