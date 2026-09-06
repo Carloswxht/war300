@@ -1277,6 +1277,17 @@
     </div>
   </div>
 
+  <div id="view-day-order">
+    <div class="ex-topbar">
+      <button class="back-btn" id="dayOrderBackBtn" aria-label="Volver">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Programa tu entreno</h2>
+    </div>
+    <p class="board-hint">Selecciona lo que quieres hacer cada día.</p>
+    <div class="board" id="dayOrderBoard"></div>
+  </div>
+
   <div id="view-store">
     <video id="storeVideo" src="tienda-video.mp4" autoplay muted loop playsinline></video>
     <button class="store-back" id="storeBackBtn" aria-label="Volver">
@@ -1292,7 +1303,6 @@
       </button>
       <h2>Programa tu entreno</h2>
     </div>
-    <p class="board-hint">Selecciona lo que quieres hacer cada día.</p>
     <div class="board" id="board"></div>
   </div>
 
@@ -1630,7 +1640,28 @@ function muscleBlock(m){
 
 const arrowDownSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+// Tarjeta de un día en "Programa tu entreno" (con músculos) — ya asignado,
+// solo se muestra en el orden elegido, sin picker ni "Cambiar" aquí.
 function dayCard(day, slotNum){
+  const num = String(slotNum).padStart(2,'0');
+  return `
+    <div class="day" data-accent="${day.accent}">
+      <div class="day-head">
+        <div class="day-num">${num}</div>
+        <div class="day-title">
+          <p class="name">${day.name}</p>
+          <p class="desc">${day.desc}</p>
+        </div>
+      </div>
+      <div class="muscles">
+        ${day.muscles.map(muscleBlock).join('')}
+      </div>
+    </div>`;
+}
+
+// Misma tarjeta pero SIN músculos, para la pantalla "Elige el orden" — ya
+// asignada, con el nombre de la rutina y el enlace "Cambiar" al lado.
+function dayOrderAssignedCard(day, slotNum){
   const num = String(slotNum).padStart(2,'0');
   return `
     <div class="day" data-accent="${day.accent}">
@@ -1641,16 +1672,13 @@ function dayCard(day, slotNum){
           <p class="desc">${day.desc}</p>
         </div>
       </div>
-      <div class="muscles">
-        ${day.muscles.map(muscleBlock).join('')}
-      </div>
     </div>`;
 }
 
 // Tarjeta de un día sin asignar todavía: en vez del nombre de rutina, una
 // flechita apuntando a las opciones de abajo. Esas opciones usan el mismo
 // formato de fila que los músculos (fondo, chevron) y solo muestran las
-// rutinas que ningún otro día haya tomado ya.
+// rutinas que ningún otro día haya tomado ya. Se usa solo en "Elige el orden".
 function dayPickerCard(slotNum, availableAccents){
   const num = String(slotNum).padStart(2,'0');
   const options = availableAccents.map(accent=>{
@@ -1676,35 +1704,49 @@ function dayPickerCard(slotNum, availableAccents){
 }
 
 const board = document.getElementById('board');
-board.innerHTML = [1,2,3].map(s=>`<div id="daySlot-${s}"></div>`).join('');
+const dayOrderBoard = document.getElementById('dayOrderBoard');
+dayOrderBoard.innerHTML = [1,2,3].map(s=>`<div id="dayOrderSlot-${s}"></div>`).join('');
 
 // Qué rutina (accent 1=Empuje, 2=Pierna y core, 3=Tirón) va en cada día
-// (slot 1, 2, 3). Empieza vacío — el usuario elige día por día; en cuanto
-// elige el segundo, el tercero se completa solo con la opción que quede.
+// (slot 1, 2, 3). Empieza vacío — el usuario elige día por día en "Elige el
+// orden"; en cuanto elige el segundo, el tercero se completa solo con la
+// opción que quede. Si nunca pasó por ahí (ej. "Cambiar rutina" antes de
+// tener orden guardado), "Programa tu entreno" usa el orden de fábrica.
 let dayAssignment = { 1:null, 2:null, 3:null };
 
-function renderSlot(slotNum){
-  const slotEl = document.getElementById('daySlot-' + slotNum);
+// Pinta "Programa tu entreno": los 3 días, ya en el orden elegido, con sus
+// músculos — sin picker, sin "Cambiar". Se puede llamar varias veces (cada
+// vez que se entra a la pantalla) para reflejar el orden más reciente.
+function renderChecklistBoard(){
+  board.innerHTML = [1,2,3].map(slotNum=>{
+    const accent = dayAssignment[slotNum] || slotNum;
+    const dayObj = DAYS.find(d=>d.accent === accent);
+    return dayCard(dayObj, slotNum);
+  }).join('');
+  board.querySelectorAll('.muscle-head').forEach(head=>{
+    head.addEventListener('click', ()=>{
+      head.closest('.muscle').classList.toggle('open');
+    });
+  });
+  board.querySelectorAll('.sub-head').forEach(head=>{
+    head.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const subEl = head.closest('.sub');
+      const sub = SUB_INDEX[subEl.dataset.sub];
+      subEl.classList.toggle('on');
+      persistState(true);
+      renderSubExercises(sub);
+    });
+  });
+}
+
+function renderDayOrderSlot(slotNum){
+  const slotEl = document.getElementById('dayOrderSlot-' + slotNum);
   if(!slotEl) return;
   const accent = dayAssignment[slotNum];
   if(accent){
     const dayObj = DAYS.find(d=>d.accent === accent);
-    slotEl.innerHTML = dayCard(dayObj, slotNum);
-    slotEl.querySelectorAll('.muscle-head').forEach(head=>{
-      head.addEventListener('click', ()=>{
-        head.closest('.muscle').classList.toggle('open');
-      });
-    });
-    slotEl.querySelectorAll('.sub-head').forEach(head=>{
-      head.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        const subEl = head.closest('.sub');
-        const sub = SUB_INDEX[subEl.dataset.sub];
-        subEl.classList.toggle('on');
-        persistState(true);
-        renderSubExercises(sub);
-      });
-    });
+    slotEl.innerHTML = dayOrderAssignedCard(dayObj, slotNum);
     const changeLink = slotEl.querySelector('.day-change-link');
     if(changeLink){
       changeLink.addEventListener('click', (e)=>{
@@ -1724,8 +1766,8 @@ function renderSlot(slotNum){
   }
 }
 
-function renderAllSlots(){
-  [1,2,3].forEach(s => renderSlot(s));
+function renderAllDayOrderSlots(){
+  [1,2,3].forEach(s => renderDayOrderSlot(s));
 }
 
 // Al elegir una rutina para un día, esa opción desaparece de los demás días
@@ -1733,15 +1775,15 @@ function renderAllSlots(){
 // el último día se llena solo, sin que el usuario tenga que tocarlo.
 function assignDaySlot(slot, accent){
   dayAssignment[slot] = accent;
-  renderSlot(slot);
+  renderDayOrderSlot(slot);
   const usedAccents = Object.values(dayAssignment).filter(Boolean);
   const remainingSlots = [1,2,3].filter(s=>!dayAssignment[s]);
   const remainingAccents = [1,2,3].filter(a=>!usedAccents.includes(a));
   if(remainingSlots.length === 1 && remainingAccents.length === 1){
     dayAssignment[remainingSlots[0]] = remainingAccents[0];
-    renderSlot(remainingSlots[0]);
+    renderDayOrderSlot(remainingSlots[0]);
   } else {
-    remainingSlots.forEach(s => renderSlot(s));
+    remainingSlots.forEach(s => renderDayOrderSlot(s));
   }
   persistDaySlots();
 }
@@ -1751,11 +1793,11 @@ function assignDaySlot(slot, accent){
 // opción que se acaba de liberar ya vuelve a estar disponible para ellos.
 function unassignDaySlot(slot){
   dayAssignment[slot] = null;
-  [1,2,3].forEach(s=>{ if(!dayAssignment[s]) renderSlot(s); });
+  [1,2,3].forEach(s=>{ if(!dayAssignment[s]) renderDayOrderSlot(s); });
   persistDaySlots();
 }
 
-renderAllSlots();
+renderChecklistBoard();
 
 // Al marcar un sub-músculo, se despliega ahí mismo la elección de ejercicio
 // (antes era una pantalla aparte, "Elige tu ejercicio" — ahora todo pasa en
@@ -2309,6 +2351,7 @@ const viewStatsPeriod = document.getElementById('view-stats-period');
 const viewStore = document.getElementById('view-store');
 const viewOnboarding = document.getElementById('view-onboarding');
 const viewSplitPicker = document.getElementById('view-split-picker');
+const viewDayOrder = document.getElementById('view-day-order');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
@@ -2351,6 +2394,7 @@ window.addEventListener('popstate', (e)=>{
     case 'store': goToStore(); break;
     case 'onboarding': goToOnboarding(); break;
     case 'split-picker': goToSplitPicker(); break;
+    case 'day-order': goToDayOrder(); break;
     default: goHome();
   }
   suppressPush = false;
@@ -2367,6 +2411,7 @@ function hideAllViews(){
   viewStore.style.display = 'none';
   viewOnboarding.style.display = 'none';
   viewSplitPicker.style.display = 'none';
+  viewDayOrder.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
   const storeVideo = document.getElementById('storeVideo');
@@ -2498,6 +2543,7 @@ function goHome(){
 
 function goToChecklistFromHome(){
   hideAllViews();
+  renderChecklistBoard();
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
   continueBtn.style.visibility = 'visible';
@@ -2775,6 +2821,13 @@ function goToExecution(){
 
 continueBtn.addEventListener('click', async ()=>{
   if(currentView === 'home'){ if(homeStartAction) homeStartAction(); }
+  else if(currentView === 'day-order'){
+    if(![1,2,3].every(s=>dayAssignment[s])){
+      showToast('Elige los 3 días para continuar.');
+      return;
+    }
+    goToChecklistFromHome();
+  }
   else if(currentView === 'checklist') goToExecution();
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
@@ -2875,7 +2928,7 @@ async function loadState(){
         }catch(e){ /* si viene corrupta, el usuario simplemente vuelve a elegir */ }
       }
     });
-    renderAllSlots();
+    renderChecklistBoard();
 
     // Segunda pasada: progreso guardado por ejercicio y sub-músculos marcados.
     rows.forEach(row=>{
@@ -2961,7 +3014,8 @@ document.getElementById('storeFabBtn').addEventListener('click', goToStore);
 // ---- Pantalla de bienvenida (solo la primera vez, sin entrenos aún) ----
 document.getElementById('onbCreateBtn').addEventListener('click', goToSplitPicker);
 document.getElementById('splitBackBtn').addEventListener('click', ()=> history.back());
-document.getElementById('splitPPLBtn').addEventListener('click', goToChecklistFromHome);
+document.getElementById('splitPPLBtn').addEventListener('click', goToDayOrder);
+document.getElementById('dayOrderBackBtn').addEventListener('click', ()=> history.back());
 // "Full Body" y "Torso/Pierna" todavía no tienen su propia rotación de
 // ejercicios diseñada — por ahora solo avisan que viene pronto, en vez de
 // fingir una estructura que en realidad sería la misma de Empuje/Tirón/Pierna
@@ -3447,6 +3501,20 @@ function goToSplitPicker(){
   viewSplitPicker.style.display = 'block';
   currentView = 'split-picker';
   continueBtn.style.visibility = 'hidden';
+  window.scrollTo(0,0);
+  pushNav();
+}
+// Pantalla intermedia entre "Elige tu estructura" y "Programa tu entreno":
+// aquí el usuario decide qué rutina va en cada día (sin ver músculos
+// todavía). Al tocar Continuar, ya con los 3 días asignados, pasa a
+// "Programa tu entreno" en ese mismo orden.
+function goToDayOrder(){
+  hideAllViews();
+  renderAllDayOrderSlots();
+  viewDayOrder.style.display = 'block';
+  currentView = 'day-order';
+  continueBtn.style.visibility = 'visible';
+  continueBtn.innerHTML = `Continuar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   window.scrollTo(0,0);
   pushNav();
 }
