@@ -219,6 +219,7 @@
   .board{position:relative;}
   .board-hint{font-size:13px;color:var(--text-dim);margin:0 0 16px;}
   .day-title-arrow{display:flex;align-items:center;height:100%;color:var(--text-dim);}
+  .picker-row-hint{font-size:11.5px;font-weight:700;color:var(--text-dim);margin-right:8px;flex-shrink:0;}
   .day{
     background:var(--panel);
     border:1px solid var(--line);
@@ -397,6 +398,7 @@
   }
   .stats-option:active{transform:scale(.98);}
   .stats-option .so-name{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px;color:var(--text);}
+  .stats-option .so-freq{font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;margin:0 0 6px;}
   .stats-option .so-desc{font-size:12.5px;color:var(--text-dim);margin:0;line-height:1.4;}
   .stats-option.so-with-icon{display:flex;align-items:center;gap:14px;}
   .stats-option .so-icon{width:22px;height:22px;color:var(--day1);flex-shrink:0;}
@@ -1264,14 +1266,17 @@
     <div class="stats-menu">
       <div class="stats-option" id="splitFullBodyBtn">
         <p class="so-name">Full Body</p>
+        <p class="so-freq">3 días por semana</p>
         <p class="so-desc">Todo el cuerpo en cada sesión. Ideal si tienes poco tiempo o estás empezando.</p>
       </div>
       <div class="stats-option" id="splitUpperLowerBtn">
         <p class="so-name">Torso / Pierna</p>
+        <p class="so-freq">4 días por semana</p>
         <p class="so-desc">Divide tren superior e inferior — más volumen por grupo, buena recuperación.</p>
       </div>
       <div class="stats-option" id="splitPPLBtn">
         <p class="so-name">Empuje / Tirón / Pierna</p>
+        <p class="so-freq">3 días por semana</p>
         <p class="so-desc">Agrupa por función — empuje, tirón y pierna, sin interferencia entre sesiones.</p>
       </div>
     </div>
@@ -1676,17 +1681,20 @@ function dayOrderAssignedCard(day, slotNum){
 }
 
 // Tarjeta de un día sin asignar todavía: en vez del nombre de rutina, una
-// flechita apuntando a las opciones de abajo. Esas opciones usan el mismo
-// formato de fila que los músculos (fondo, chevron) y solo muestran las
-// rutinas que ningún otro día haya tomado ya. Se usa solo en "Elige el orden".
-function dayPickerCard(slotNum, availableAccents){
+// flechita apuntando a las opciones de abajo. Muestra SIEMPRE las 3
+// rutinas (no solo las libres) — si una ya está en otro día, se avisa con
+// una etiqueta, y tocarla intercambia los dos días en vez de dejar al otro
+// sin nada. Se usa solo en "Elige el orden".
+function dayPickerCard(slotNum){
   const num = String(slotNum).padStart(2,'0');
-  const options = availableAccents.map(accent=>{
-    const d = DAYS.find(x=>x.accent === accent);
+  const options = DAYS.map(d=>{
+    const heldSlot = Object.keys(dayAssignment).find(s => Number(s) !== slotNum && dayAssignment[s] === d.accent);
+    const hint = heldSlot ? `<div class="picker-row-hint">Día ${String(heldSlot).padStart(2,'0')}</div>` : '';
     return `
-      <div class="muscle picker-row" data-slot="${slotNum}" data-accent="${accent}">
+      <div class="muscle picker-row" data-slot="${slotNum}" data-accent="${d.accent}">
         <div class="muscle-head">
           <div class="muscle-label">${d.name}</div>
+          ${hint}
           ${chevronSvg}
         </div>
       </div>`;
@@ -1755,9 +1763,7 @@ function renderDayOrderSlot(slotNum){
       });
     }
   } else {
-    const usedAccents = Object.values(dayAssignment).filter(Boolean);
-    const availableAccents = [1,2,3].filter(a=>!usedAccents.includes(a));
-    slotEl.innerHTML = dayPickerCard(slotNum, availableAccents);
+    slotEl.innerHTML = dayPickerCard(slotNum);
     slotEl.querySelectorAll('.picker-row').forEach(row=>{
       row.addEventListener('click', ()=>{
         assignDaySlot(Number(row.dataset.slot), Number(row.dataset.accent));
@@ -1770,30 +1776,39 @@ function renderAllDayOrderSlots(){
   [1,2,3].forEach(s => renderDayOrderSlot(s));
 }
 
-// Al elegir una rutina para un día, esa opción desaparece de los demás días
-// sin asignar. Si con esa elección solo queda un día y una opción libres,
-// el último día se llena solo, sin que el usuario tenga que tocarlo.
-function assignDaySlot(slot, accent){
-  dayAssignment[slot] = accent;
-  renderDayOrderSlot(slot);
+// Si con la asignación actual solo queda un día y una rutina sin usar, ese
+// día se completa solo, sin que el usuario tenga que tocarlo.
+function autoFillIfPossible(){
   const usedAccents = Object.values(dayAssignment).filter(Boolean);
   const remainingSlots = [1,2,3].filter(s=>!dayAssignment[s]);
   const remainingAccents = [1,2,3].filter(a=>!usedAccents.includes(a));
   if(remainingSlots.length === 1 && remainingAccents.length === 1){
     dayAssignment[remainingSlots[0]] = remainingAccents[0];
-    renderDayOrderSlot(remainingSlots[0]);
-  } else {
-    remainingSlots.forEach(s => renderDayOrderSlot(s));
   }
+}
+
+// Al elegir una rutina para un día: si esa rutina ya estaba en otro día, se
+// intercambian entre los dos (el otro día se queda con la que este tenía,
+// o vacío si no tenía nada) — así "Cambiar" siempre tiene con qué
+// reemplazar, aunque los otros dos días ya estén ocupados.
+function assignDaySlot(slot, accent){
+  const currentAtSlot = dayAssignment[slot];
+  const otherEntry = Object.entries(dayAssignment).find(([s, a]) => Number(s) !== slot && a === accent);
+  if(otherEntry){
+    dayAssignment[Number(otherEntry[0])] = currentAtSlot;
+  }
+  dayAssignment[slot] = accent;
+  autoFillIfPossible();
+  renderAllDayOrderSlots();
   persistDaySlots();
 }
 
-// "Cambiar": libera ese día y lo vuelve a dejar como opciones para elegir.
-// También refresca cualquier otro día que siga sin asignar, porque la
-// opción que se acaba de liberar ya vuelve a estar disponible para ellos.
+// "Cambiar": libera ese día y lo vuelve a dejar con las 3 opciones para
+// elegir (incluye las que ya están en otro día — tocar una de esas hace
+// el intercambio, ver assignDaySlot).
 function unassignDaySlot(slot){
   dayAssignment[slot] = null;
-  [1,2,3].forEach(s=>{ if(!dayAssignment[s]) renderDayOrderSlot(s); });
+  renderAllDayOrderSlots();
   persistDaySlots();
 }
 
