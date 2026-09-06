@@ -305,32 +305,6 @@
     padding:2px 2px 14px 32px;
     display:flex;flex-direction:column;gap:2px;
   }
-  .add-ex-toggle{
-    font-size:12.5px;font-weight:700;color:var(--accent, var(--text-dim));
-    padding:10px 4px 6px;cursor:pointer;
-  }
-  .add-ex-form{
-    display:flex;flex-direction:column;gap:8px;
-    padding:10px 4px 4px;
-  }
-  .add-ex-form input[type="text"], .add-ex-form input[type="url"]{
-    width:100%;box-sizing:border-box;
-    background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
-    padding:10px 12px;font-family:'Archivo',sans-serif;font-size:13px;color:var(--text);
-  }
-  .add-ex-row{display:flex;gap:8px;}
-  .add-ex-row input{flex:1;min-width:0;}
-  .add-ex-video-label{
-    display:flex;align-items:center;gap:6px;
-    font-size:12.5px;color:var(--text-dim);cursor:pointer;padding:2px 0;
-  }
-  .video-or{font-size:11px;color:var(--text-dim);margin:2px 0 0;text-align:center;}
-  .add-ex-save{
-    background:var(--accent, var(--text));color:var(--ink);border:none;
-    font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;
-    padding:11px;border-radius:9px;cursor:pointer;
-  }
-  .add-ex-save:disabled{opacity:.6;}
 
   body{padding-bottom:110px;}
 
@@ -524,13 +498,6 @@
     flex-shrink:0;
   }
   .ver-link:active{opacity:.5;}
-  .edit-link{
-    font-size:12px;font-weight:700;
-    color:var(--text-dim);
-    padding:4px 0 4px 10px;
-    flex-shrink:0;
-  }
-  .edit-link:active{opacity:.5;}
 
   .modal-overlay{
     display:none;
@@ -1699,46 +1666,14 @@ function renderSubExercises(sub){
   const subEl = board.querySelector(`.sub[data-sub="${sub.id}"]`);
   const isOn = subEl && subEl.classList.contains('on');
   if(!isOn){ container.innerHTML = ''; return; }
-  const builtIn = exercisesFor(sub.muscleName, sub.name);
-  const custom = customExercises[sub.id] || [];
-  const allNames = builtIn.concat(custom.map(c => c.name));
-  if(!chosenExercise[sub.id] && allNames.length) chosenExercise[sub.id] = allNames[0];
+  const opts = exercisesFor(sub.muscleName, sub.name);
+  if(opts.length === 0){ container.innerHTML = ''; return; }
+  if(!chosenExercise[sub.id]) chosenExercise[sub.id] = opts[0];
   const picked = chosenExercise[sub.id];
-  const builtInRows = builtIn.map(ex => exOptionRow(sub.id, ex, ex === picked)).join('');
-  const customRows = custom.map(ce => exOptionRow(sub.id, ce.name, ce.name === picked, ce.id)).join('');
-  container.innerHTML = `
-    ${builtInRows}${customRows}
-    <div class="add-ex-toggle">+ Agregar ejercicio</div>
-    <div class="add-ex-form" style="display:none;">
-      <input type="text" class="add-ex-name" placeholder="Nombre del ejercicio">
-      <div class="add-ex-row">
-        <input type="text" inputmode="decimal" class="add-ex-peso" placeholder="Peso (kg)">
-        <input type="text" inputmode="numeric" class="add-ex-series" placeholder="Series">
-      </div>
-      <label class="add-ex-video-label">
-        📎 <span class="add-ex-video-name">Subir video del celular</span>
-        <input type="file" accept="video/*" class="add-ex-video" hidden>
-      </label>
-      <p class="video-or">o pega un link (YouTube, etc.)</p>
-      <input type="url" class="add-ex-video-url" placeholder="https://...">
-      <button type="button" class="add-ex-save">Guardar ejercicio</button>
-    </div>
-    <div class="add-ex-form edit-ex-form" style="display:none;">
-      <input type="text" class="edit-ex-name" placeholder="Nombre del ejercicio">
-      <label class="add-ex-video-label">
-        📎 <span class="edit-ex-video-name">Subir video del celular</span>
-        <input type="file" accept="video/*" class="edit-ex-video" hidden>
-      </label>
-      <p class="video-or">o pega un link (YouTube, etc.)</p>
-      <input type="url" class="edit-ex-video-url" placeholder="https://...">
-      <div class="add-ex-row">
-        <button type="button" class="edit-ex-save">Guardar cambios</button>
-        <button type="button" class="edit-ex-cancel">Cancelar</button>
-      </div>
-    </div>`;
+  container.innerHTML = opts.map(ex => exOptionRow(sub.id, ex, ex === picked)).join('');
   container.querySelectorAll('.ex-option').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
-      if(e.target.classList.contains('ver-link') || e.target.classList.contains('edit-link')) return;
+      if(e.target.classList.contains('ver-link')) return;
       e.stopPropagation();
       chosenExercise[sub.id] = opt.dataset.ex;
       persistState(true);
@@ -1748,156 +1683,9 @@ function renderSubExercises(sub){
   container.querySelectorAll('.ver-link').forEach(link=>{
     link.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const match = custom.find(c => c.name === link.dataset.ver);
-      if(match && match.video_url) window.open(match.video_url, '_blank');
-      else openAnimModal(link.dataset.ver);
+      openAnimModal(link.dataset.ver);
     });
   });
-
-  const addToggle = container.querySelector('.add-ex-toggle');
-  const addForm = container.querySelector('.add-ex-form:not(.edit-ex-form)');
-  const editForm = container.querySelector('.edit-ex-form');
-  addToggle.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    editForm.style.display = 'none';
-    addForm.style.display = addForm.style.display === 'none' ? 'block' : 'none';
-  });
-  addForm.addEventListener('click', (e)=> e.stopPropagation());
-  const videoInput = addForm.querySelector('.add-ex-video');
-  videoInput.addEventListener('change', ()=>{
-    const f = videoInput.files && videoInput.files[0];
-    addForm.querySelector('.add-ex-video-name').textContent = f ? f.name : 'Agregar video (opcional)';
-  });
-  addForm.querySelector('.add-ex-save').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    saveCustomExercise(sub, addForm);
-  });
-
-  // Editar un ejercicio que el propio usuario creó — solo nombre y video.
-  // El peso/series de ese ejercicio ya se ajustan en su propia tarjeta
-  // durante la ejecución, no hace falta duplicarlo aquí.
-  container.querySelectorAll('.edit-link').forEach(link=>{
-    link.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const match = custom.find(c => String(c.id) === link.dataset.editId);
-      if(!match) return;
-      addForm.style.display = 'none';
-      editForm.style.display = 'block';
-      editForm.dataset.editingId = match.id;
-      editForm.querySelector('.edit-ex-name').value = match.name;
-      editForm.querySelector('.edit-ex-video-name').textContent = match.video_url ? 'Ya tiene video — elige otro para reemplazarlo' : 'Agregar video (opcional)';
-      editForm.querySelector('.edit-ex-video').value = '';
-      editForm.querySelector('.edit-ex-video-url').value = '';
-    });
-  });
-  editForm.addEventListener('click', (e)=> e.stopPropagation());
-  const editVideoInput = editForm.querySelector('.edit-ex-video');
-  editVideoInput.addEventListener('change', ()=>{
-    const f = editVideoInput.files && editVideoInput.files[0];
-    if(f) editForm.querySelector('.edit-ex-video-name').textContent = f.name;
-  });
-  editForm.querySelector('.edit-ex-cancel').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    editForm.style.display = 'none';
-  });
-  editForm.querySelector('.edit-ex-save').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    updateCustomExercise(sub, editForm);
-  });
-}
-
-async function updateCustomExercise(sub, editForm){
-  const customId = editForm.dataset.editingId;
-  const list = customExercises[sub.id] || [];
-  const match = list.find(c => String(c.id) === customId);
-  if(!match) return;
-  const name = (editForm.querySelector('.edit-ex-name').value || '').trim();
-  if(!name){ showToast('Ponle un nombre al ejercicio.'); return; }
-  const saveBtn = editForm.querySelector('.edit-ex-save');
-  saveBtn.textContent = 'Guardando...';
-  saveBtn.disabled = true;
-  let video_url = match.video_url;
-  const videoInput = editForm.querySelector('.edit-ex-video');
-  const videoUrlInput = editForm.querySelector('.edit-ex-video-url');
-  const pastedUrl = (videoUrlInput.value || '').trim();
-  const file = videoInput.files && videoInput.files[0];
-  if(pastedUrl){
-    video_url = pastedUrl;
-  } else if(file){
-    try{
-      const path = `${currentUser.id}/${sub.id}-${Date.now()}-${file.name}`;
-      const { error: upErr } = await sb.storage.from('exercise-videos').upload(path, file);
-      if(upErr) throw upErr;
-      const { data } = sb.storage.from('exercise-videos').getPublicUrl(path);
-      video_url = data.publicUrl;
-    }catch(e){
-      showToast('No se pudo subir el video nuevo — se guardan los demás cambios.');
-    }
-  }
-  const oldName = match.name;
-  try{
-    const { error } = await sb.from('custom_exercises').update({ name, video_url }).eq('id', customId);
-    if(error) throw error;
-    match.name = name;
-    match.video_url = video_url;
-    if(chosenExercise[sub.id] === oldName) chosenExercise[sub.id] = name;
-    renderSubExercises(sub);
-    showToast('Ejercicio actualizado ✓');
-  }catch(e){
-    showToast('No se pudo guardar el cambio, inténtalo de nuevo.');
-    saveBtn.textContent = 'Guardar cambios';
-    saveBtn.disabled = false;
-  }
-}
-
-async function saveCustomExercise(sub, form){
-  const nameInput = form.querySelector('.add-ex-name');
-  const pesoInput = form.querySelector('.add-ex-peso');
-  const seriesInput = form.querySelector('.add-ex-series');
-  const videoInput = form.querySelector('.add-ex-video');
-  const videoUrlInput = form.querySelector('.add-ex-video-url');
-  const name = (nameInput.value || '').trim();
-  if(!name){ showToast('Ponle un nombre al ejercicio.'); return; }
-  const peso = parseFloat(String(pesoInput.value || '').replace(',', '.'));
-  const series = (seriesInput.value || '').trim() || '3';
-  const saveBtn = form.querySelector('.add-ex-save');
-  saveBtn.textContent = 'Guardando...';
-  saveBtn.disabled = true;
-  let video_url = null;
-  const pastedUrl = (videoUrlInput.value || '').trim();
-  const file = videoInput.files && videoInput.files[0];
-  if(pastedUrl){
-    // Un link pegado (YouTube o cualquier otro) siempre tiene prioridad
-    // sobre un archivo subido — no hace falta guardar ambos.
-    video_url = pastedUrl;
-  } else if(file){
-    try{
-      const path = `${currentUser.id}/${sub.id}-${Date.now()}-${file.name}`;
-      const { error: upErr } = await sb.storage.from('exercise-videos').upload(path, file);
-      if(upErr) throw upErr;
-      const { data } = sb.storage.from('exercise-videos').getPublicUrl(path);
-      video_url = data.publicUrl;
-    }catch(e){
-      showToast('No se pudo subir el video — se guarda el ejercicio sin video.');
-    }
-  }
-  try{
-    const { data: inserted, error } = await sb.from('custom_exercises').insert({
-      user_id: currentUser.id, sub_id: sub.id, name,
-      peso: isNaN(peso) ? null : peso, series, video_url,
-    }).select().single();
-    if(error) throw error;
-    if(!customExercises[sub.id]) customExercises[sub.id] = [];
-    customExercises[sub.id].push(inserted);
-    chosenExercise[sub.id] = name;
-    persistState(true);
-    renderSubExercises(sub);
-    showToast('Ejercicio agregado ✓');
-  }catch(e){
-    showToast('No se pudo guardar el ejercicio, inténtalo de nuevo.');
-    saveBtn.textContent = 'Guardar ejercicio';
-    saveBtn.disabled = false;
-  }
 }
 
 board.querySelectorAll('.sub-head').forEach(head=>{
@@ -1917,16 +1705,13 @@ const viewExercises = document.getElementById('view-exercises');
 const exBoard = document.getElementById('exBoard');
 const continueBtn = document.getElementById('continueBtn');
 const chosenExercise = {}; // subId -> nombre de ejercicio elegido
-const customExercises = {}; // subId -> [{id, name, peso, series, video_url}]
 
-function exOptionRow(subId, exName, isPicked, customId){
-  const editLink = customId ? `<div class="edit-link" data-edit-id="${customId}">Editar</div>` : '';
+function exOptionRow(subId, exName, isPicked, accentClass){
   return `
     <div class="ex-option ${isPicked ? 'picked':''}" data-sub="${subId}" data-ex="${exName}">
       <div class="radio"></div>
       <div class="ex-option-name">${exName}</div>
       <div class="ver-link" data-ver="${exName}">Ver</div>
-      ${editLink}
     </div>`;
 }
 
@@ -2204,11 +1989,8 @@ function renderExecCard(){
   }
   const item = execList[execIndex];
   saveExecNav();
-  const customMatch = (customExercises[item.subId] || []).find(c => c.name === item.exName);
   const patternKey = EXERCISE_PATTERN[item.exName] || 'curl';
-  const guide = customMatch
-    ? { peso: customMatch.peso != null ? Number(customMatch.peso) : 10, series: customMatch.series || '3', reps: '8-12', step: 2.5, type: 'Ejercicio personalizado', note: 'Ejercicio agregado por ti.' }
-    : (REP_GUIDE[patternKey] || REP_GUIDE['curl']);
+  const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
   const workKey = item.subId + '::' + item.exName;
   const saved = workData[workKey] || {};
   const pesoVal = saved.peso != null ? Number(saved.peso) : guide.peso;
@@ -2224,7 +2006,7 @@ function renderExecCard(){
   const step = guide.step || 1;
   execProgress.textContent = `${execIndex + 1} / ${execList.length}`;
   const isLast = execIndex === execList.length - 1;
-  const opts = exercisesFor(item.muscleName, item.subName).concat((customExercises[item.subId] || []).map(c => c.name));
+  const opts = exercisesFor(item.muscleName, item.subName);
   const accentVar = item.accent === 1 ? 'var(--day1)' : item.accent === 2 ? 'var(--day2)' : 'var(--day3)';
   execCard.innerHTML = `
     <div class="exec-card" style="--accent:${accentVar};">
@@ -2423,16 +2205,11 @@ function renderExecCard(){
   execCard.querySelectorAll('.ver-link').forEach(link=>{
     link.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const match = (customExercises[item.subId] || []).find(c => c.name === link.dataset.ver);
-      if(match && match.video_url) window.open(match.video_url, '_blank');
-      else openAnimModal(link.dataset.ver);
+      openAnimModal(link.dataset.ver);
     });
   });
 
-  document.getElementById('execSeeLink').addEventListener('click', ()=>{
-    if(customMatch && customMatch.video_url) window.open(customMatch.video_url, '_blank');
-    else openAnimModal(item.exName);
-  });
+  document.getElementById('execSeeLink').addEventListener('click', ()=> openAnimModal(item.exName));
 }
 
 // ---- Navegación entre pantallas ----
@@ -3006,19 +2783,6 @@ async function loadState(){
         if(row.ejercicio_elegido) chosenExercise[row.work_key] = row.ejercicio_elegido;
       }
     });
-    // Ejercicios que el propio usuario agregó (nombre, peso, series, video).
-    try{
-      const { data: customRows, error: customErr } = await sb.from('custom_exercises')
-        .select('*').eq('user_id', currentUser.id).order('created_at', { ascending: true });
-      if(!customErr && customRows){
-        customRows.forEach(row=>{
-          if(!customExercises[row.sub_id]) customExercises[row.sub_id] = [];
-          customExercises[row.sub_id].push(row);
-        });
-      }
-    }catch(e){
-      // si falla, la app sigue funcionando solo sin los ejercicios personalizados
-    }
     // Refresca el panel de ejercicios de cada sub-músculo ya marcado, para
     // que se vea de una vez la elección guardada al recargar la app.
     Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
@@ -3094,9 +2858,8 @@ document.getElementById('splitBackBtn').addEventListener('click', ()=> history.b
 document.getElementById('splitPPLBtn').addEventListener('click', async ()=>{
   const nextAccent = await getNextDayAccent();
   autoProgramDay(nextAccent);
-  Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
   persistState(true);
-  goToChecklistFromHome();
+  goToExercises();
 });
 // "Full Body" y "Torso/Pierna" todavía no tienen su propia rotación de
 // ejercicios diseñada — por ahora solo avisan que viene pronto, en vez de
