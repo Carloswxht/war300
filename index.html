@@ -1625,14 +1625,17 @@ function muscleBlock(m){
     </div>`;
 }
 
-function dayCard(day){
+const DAY_ORDINALS = ['primer','segundo','tercer'];
+
+function dayCard(day, slotNum){
+  const num = String(slotNum).padStart(2,'0');
   return `
     <div class="day" data-accent="${day.accent}">
       <div class="day-head">
-        <div class="day-num">${day.num}</div>
+        <div class="day-num">${num}</div>
         <div class="day-title">
           <p class="name">${day.name}</p>
-          <p class="desc">${day.desc}</p>
+          <p class="desc">${day.desc} <span class="ver-link day-change-link" data-slot="${slotNum}" style="cursor:pointer;">Cambiar</span></p>
         </div>
       </div>
       <div class="muscles">
@@ -1641,14 +1644,118 @@ function dayCard(day){
     </div>`;
 }
 
-const board = document.getElementById('board');
-board.innerHTML = DAYS.map(dayCard).join('');
+// Tarjeta de "elige qué entrenar" para un día sin asignar todavía — mismas
+// filas con el formato de los músculos (fondo, chevron), pero cada fila es
+// una de las 3 rutinas disponibles. Solo muestra las que ningún otro día
+// haya tomado ya.
+function dayPickerCard(slotNum, availableAccents){
+  const num = String(slotNum).padStart(2,'0');
+  const ordinal = DAY_ORDINALS[slotNum - 1] || 'primer';
+  const options = availableAccents.map(accent=>{
+    const d = DAYS.find(x=>x.accent === accent);
+    return `
+      <div class="muscle picker-row" data-slot="${slotNum}" data-accent="${accent}">
+        <div class="muscle-head">
+          <div class="muscle-label">${d.name}</div>
+          ${chevronSvg}
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="day">
+      <div class="day-head">
+        <div class="day-num" style="color:var(--text-dim);">${num}</div>
+        <div class="day-title">
+          <p class="name">Toca lo que quieres entrenar el ${ordinal} día</p>
+        </div>
+      </div>
+      <div class="muscles">
+        ${options}
+      </div>
+    </div>`;
+}
 
-board.querySelectorAll('.muscle-head').forEach(head=>{
-  head.addEventListener('click', ()=>{
-    head.closest('.muscle').classList.toggle('open');
-  });
-});
+const board = document.getElementById('board');
+board.innerHTML = [1,2,3].map(s=>`<div id="daySlot-${s}"></div>`).join('');
+
+// Qué rutina (accent 1=Empuje, 2=Pierna y core, 3=Tirón) va en cada día
+// (slot 1, 2, 3). Empieza vacío — el usuario elige día por día; en cuanto
+// elige el segundo, el tercero se completa solo con la opción que quede.
+let dayAssignment = { 1:null, 2:null, 3:null };
+
+function renderSlot(slotNum){
+  const slotEl = document.getElementById('daySlot-' + slotNum);
+  if(!slotEl) return;
+  const accent = dayAssignment[slotNum];
+  if(accent){
+    const dayObj = DAYS.find(d=>d.accent === accent);
+    slotEl.innerHTML = dayCard(dayObj, slotNum);
+    slotEl.querySelectorAll('.muscle-head').forEach(head=>{
+      head.addEventListener('click', ()=>{
+        head.closest('.muscle').classList.toggle('open');
+      });
+    });
+    slotEl.querySelectorAll('.sub-head').forEach(head=>{
+      head.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const subEl = head.closest('.sub');
+        const sub = SUB_INDEX[subEl.dataset.sub];
+        subEl.classList.toggle('on');
+        persistState(true);
+        renderSubExercises(sub);
+      });
+    });
+    const changeLink = slotEl.querySelector('.day-change-link');
+    if(changeLink){
+      changeLink.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        unassignDaySlot(slotNum);
+      });
+    }
+  } else {
+    const usedAccents = Object.values(dayAssignment).filter(Boolean);
+    const availableAccents = [1,2,3].filter(a=>!usedAccents.includes(a));
+    slotEl.innerHTML = dayPickerCard(slotNum, availableAccents);
+    slotEl.querySelectorAll('.picker-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        assignDaySlot(Number(row.dataset.slot), Number(row.dataset.accent));
+      });
+    });
+  }
+}
+
+function renderAllSlots(){
+  [1,2,3].forEach(s => renderSlot(s));
+}
+
+// Al elegir una rutina para un día, esa opción desaparece de los demás días
+// sin asignar. Si con esa elección solo queda un día y una opción libres,
+// el último día se llena solo, sin que el usuario tenga que tocarlo.
+function assignDaySlot(slot, accent){
+  dayAssignment[slot] = accent;
+  renderSlot(slot);
+  const usedAccents = Object.values(dayAssignment).filter(Boolean);
+  const remainingSlots = [1,2,3].filter(s=>!dayAssignment[s]);
+  const remainingAccents = [1,2,3].filter(a=>!usedAccents.includes(a));
+  if(remainingSlots.length === 1 && remainingAccents.length === 1){
+    dayAssignment[remainingSlots[0]] = remainingAccents[0];
+    renderSlot(remainingSlots[0]);
+  } else {
+    remainingSlots.forEach(s => renderSlot(s));
+  }
+  persistDaySlots();
+}
+
+// "Cambiar": libera ese día y lo vuelve a dejar como opciones para elegir.
+// También refresca cualquier otro día que siga sin asignar, porque la
+// opción que se acaba de liberar ya vuelve a estar disponible para ellos.
+function unassignDaySlot(slot){
+  dayAssignment[slot] = null;
+  [1,2,3].forEach(s=>{ if(!dayAssignment[s]) renderSlot(s); });
+  persistDaySlots();
+}
+
+renderAllSlots();
 
 // Al marcar un sub-músculo, se despliega ahí mismo la elección de ejercicio
 // (antes era una pantalla aparte, "Elige tu ejercicio" — ahora todo pasa en
@@ -1680,17 +1787,6 @@ function renderSubExercises(sub){
     });
   });
 }
-
-board.querySelectorAll('.sub-head').forEach(head=>{
-  head.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    const subEl = head.closest('.sub');
-    const sub = SUB_INDEX[subEl.dataset.sub];
-    subEl.classList.toggle('on');
-    persistState(true);
-    renderSubExercises(sub);
-  });
-});
 
 // ---- Vista de ejercicios (pantalla "Continuar") ----
 const viewChecklist = document.getElementById('view-checklist');
@@ -2761,12 +2857,30 @@ async function loadState(){
     const { data, error } = await sb.from('progreso').select('*').eq('user_id', currentUser.id);
     if(error) throw error;
     let themeRaw = null;
-    (data || []).forEach(row=>{
+    const rows = data || [];
+
+    // Primera pasada: tema, paletas propias y qué rutina va en cada día.
+    // Hay que aplicar la asignación de días y volver a pintar el tablero
+    // ANTES de marcar sub-músculos, porque un .sub solo existe en el DOM
+    // una vez que a ese día ya se le asignó una rutina.
+    rows.forEach(row=>{
       if(row.work_key === '__theme__'){
         themeRaw = row.series;
       } else if(row.work_key === '__custom_themes__'){
         try{ customThemes = JSON.parse(row.reps || '[]'); }catch(e){ customThemes = []; }
-      } else if(row.work_key.includes('::')){
+      } else if(row.work_key === '__day_slots__'){
+        try{
+          const saved = JSON.parse(row.reps || '{}');
+          [1,2,3].forEach(s=>{ if(saved[s]) dayAssignment[s] = Number(saved[s]); });
+        }catch(e){ /* si viene corrupta, el usuario simplemente vuelve a elegir */ }
+      }
+    });
+    renderAllSlots();
+
+    // Segunda pasada: progreso guardado por ejercicio y sub-músculos marcados.
+    rows.forEach(row=>{
+      if(row.work_key === '__theme__' || row.work_key === '__custom_themes__' || row.work_key === '__day_slots__') return;
+      if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
         if(row.checked){
@@ -3060,6 +3174,18 @@ async function saveCustomThemesList(){
     );
   }catch(e){
     showToast('No se pudo guardar tu paleta.');
+  }
+}
+
+async function persistDaySlots(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__day_slots__', reps: JSON.stringify(dayAssignment) },
+      { onConflict: 'user_id,work_key' }
+    );
+  }catch(e){
+    // si falla, la elección igual queda visible en pantalla, solo no persiste
   }
 }
 
