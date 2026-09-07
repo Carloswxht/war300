@@ -1767,20 +1767,9 @@ function renderDayOrderSlot(slotNum){
   }
 }
 
-// Mientras falten días por asignar, se ve UNA sola tarjeta — la del
-// próximo día sin elegir — para ir programando de a uno, sin agobiar con
-// los 3 juntos. Ya con los 3 elegidos, se ven los 3 en resumen (con
-// "Cambiar" cada uno) para poder revisar antes de tocar Continuar.
 function renderAllDayOrderSlots(){
-  const pending = [1,2,3].filter(s => !dayAssignment[s]);
-  if(pending.length > 0){
-    const current = pending[0];
-    dayOrderBoard.innerHTML = `<div id="dayOrderSlot-${current}"></div>`;
-    renderDayOrderSlot(current);
-  } else {
-    dayOrderBoard.innerHTML = [1,2,3].map(s=>`<div id="dayOrderSlot-${s}"></div>`).join('');
-    [1,2,3].forEach(s => renderDayOrderSlot(s));
-  }
+  dayOrderBoard.innerHTML = [1,2,3].map(s=>`<div id="dayOrderSlot-${s}"></div>`).join('');
+  [1,2,3].forEach(s => renderDayOrderSlot(s));
 }
 
 // Si con la asignación actual solo queda un día y una rutina sin usar, ese
