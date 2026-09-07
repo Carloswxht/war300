@@ -315,6 +315,9 @@
   .sub:not(.on) .sub-name{color:var(--text-dim);}
   .sub-desc{font-size:12.5px;color:var(--text-dim);line-height:1.45;margin:0;font-style:italic;}
   .ex-hint{font-size:12px;color:var(--text-dim);line-height:1.4;margin:10px 14px 2px;}
+  .summary-row{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--text);}
+  .summary-row:last-child{margin-bottom:0;}
+  .summary-row strong{font-weight:700;}
   .sub-exercises:empty{display:none;}
   .sub-exercises{
     padding:2px 2px 14px 32px;
@@ -341,7 +344,7 @@
   .continue-mini:active{opacity:.6;}
   .prev-mini{right:auto;left:14px;}
 
-  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store, #view-onboarding, #view-split-picker{display:none;}
+  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store, #view-onboarding, #view-split-picker, #view-day-order, #view-routine-summary{display:none;}
 
   .rank-bar{
     background:var(--panel);
@@ -1324,6 +1327,17 @@
     <div class="board" id="board"></div>
   </div>
 
+  <div id="view-routine-summary">
+    <div class="exec-done">
+      <h2>¡Rutina guardada! ✅</h2>
+      <p>Tu rutina ha sido guardada con éxito. Este es tu resumen:</p>
+    </div>
+    <div class="board" id="routineSummaryBoard"></div>
+    <div style="padding:4px 20px 30px;">
+      <button id="routineSummaryStartBtn" style="width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">¿Quieres empezar hoy?</button>
+    </div>
+  </div>
+
   <div id="view-exercises">
     <div class="ex-topbar">
       <button class="back-btn" id="backBtn" aria-label="Volver">
@@ -1819,7 +1833,7 @@ function isLastChecklistStep(){
 }
 
 function updateChecklistContinueLabel(){
-  const label = isLastChecklistStep() ? 'Continuar' : 'Siguiente';
+  const label = isLastChecklistStep() ? 'Finalizar' : 'Siguiente';
   continueBtn.innerHTML = `${label} <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const isFirst = checklistStep.day === 1 && checklistStep.muscleIndex === 0 && checklistStep.subIndex === 0;
   prevBtn.style.display = isFirst ? 'none' : 'flex';
@@ -2504,6 +2518,7 @@ const viewStore = document.getElementById('view-store');
 const viewOnboarding = document.getElementById('view-onboarding');
 const viewSplitPicker = document.getElementById('view-split-picker');
 const viewDayOrder = document.getElementById('view-day-order');
+const viewRoutineSummary = document.getElementById('view-routine-summary');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
@@ -2547,6 +2562,7 @@ window.addEventListener('popstate', (e)=>{
     case 'onboarding': goToOnboarding(); break;
     case 'split-picker': goToSplitPicker(); break;
     case 'day-order': goToDayOrder(); break;
+    case 'routine-summary': goToRoutineSummary(); break;
     default: goHome();
   }
   suppressPush = false;
@@ -2564,6 +2580,7 @@ function hideAllViews(){
   viewOnboarding.style.display = 'none';
   viewSplitPicker.style.display = 'none';
   viewDayOrder.style.display = 'none';
+  viewRoutineSummary.style.display = 'none';
   prevBtn.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
@@ -2995,7 +3012,7 @@ continueBtn.addEventListener('click', async ()=>{
     await persistDecidedSubs();
     const advanced = advanceChecklistStep();
     if(advanced) await persistChecklistStep();
-    else goToExecution();
+    else goToRoutineSummary();
   }
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
@@ -3015,6 +3032,8 @@ prevBtn.addEventListener('click', async ()=>{
   const retreated = retreatChecklistStep();
   if(retreated) await persistChecklistStep();
 });
+
+document.getElementById('routineSummaryStartBtn').addEventListener('click', goToExecution);
 
 document.getElementById('homeBackBtn').addEventListener('click', ()=> history.back());
 
@@ -3736,7 +3755,53 @@ function goToDayOrder(){
   window.scrollTo(0,0);
   pushNav();
 }
+
+// Arma el resumen de la rutina recién programada: por cada día, qué
+// músculos quedaron marcados y con qué ejercicio — claro y directo, sin
+// nada interactivo, solo para confirmar de un vistazo lo que se guardó.
+function renderRoutineSummary(){
+  const container = document.getElementById('routineSummaryBoard');
+  let html = '';
+  [1,2,3].forEach(slotNum=>{
+    const accent = dayAssignment[slotNum] || slotNum;
+    const dayObj = DAYS.find(d => d.accent === accent);
+    if(!dayObj) return;
+    const items = Object.keys(SUB_INDEX)
+      .filter(id => checkedSubIds.has(id))
+      .map(id => SUB_INDEX[id])
+      .filter(sub => sub.dayName === dayObj.name);
+    if(items.length === 0) return;
+    html += `
+      <div class="day" data-accent="${dayObj.accent}">
+        <div class="day-head">
+          <div class="day-num">${String(slotNum).padStart(2,'0')}<span class="day-num-kicker">Día</span></div>
+          <div class="day-title">
+            <p class="name">${dayObj.name}</p>
+          </div>
+        </div>
+        <div class="muscles" style="padding:6px 20px 18px;">
+          ${items.map(sub => `<p class="summary-row"><strong>${sub.muscleName}</strong> — ${chosenExercise[sub.id] || 'sin ejercicio elegido'}</p>`).join('')}
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html || '<p style="text-align:center;color:var(--text-dim);padding:10px 20px 20px;">No marcaste ningún ejercicio.</p>';
+}
+
+// Pantalla de cierre al terminar de programar toda la semana: confirma que
+// quedó guardada, muestra el resumen día por día y ofrece empezar de una
+// vez el entreno de hoy.
+function goToRoutineSummary(){
+  hideAllViews();
+  renderRoutineSummary();
+  viewRoutineSummary.style.display = 'block';
+  currentView = 'routine-summary';
+  continueBtn.style.visibility = 'hidden';
+  window.scrollTo(0,0);
+  pushNav();
+}
+
 async function routeInitialScreen(){
+
   try{
     const { count, error } = await sb.from('sesiones')
       .select('id', { count: 'exact', head: true })
