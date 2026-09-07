@@ -244,6 +244,7 @@
     color:var(--accent);
     line-height:1;
     min-width:38px;
+    text-align:center;
   }
   .day-num-kicker{
     display:block;
@@ -254,6 +255,7 @@
     text-transform:uppercase;
     color:var(--text-dim);
     margin-top:2px;
+    text-align:center;
   }
   .day-title{flex:1;}
   .day-title .name{font-size:17px;font-weight:700;margin:0 0 3px;}
@@ -312,6 +314,7 @@
   .sub.on .sub-name{color:var(--text);}
   .sub:not(.on) .sub-name{color:var(--text-dim);}
   .sub-desc{font-size:12.5px;color:var(--text-dim);line-height:1.45;margin:0;font-style:italic;}
+  .ex-hint{font-size:12px;color:var(--text-dim);line-height:1.4;margin:10px 14px 2px;}
   .sub-exercises:empty{display:none;}
   .sub-exercises{
     padding:2px 2px 14px 32px;
@@ -1962,7 +1965,8 @@ function renderSubExercises(sub){
   if(opts.length === 0){ container.innerHTML = ''; return; }
   if(!chosenExercise[sub.id]) chosenExercise[sub.id] = opts[0];
   const picked = chosenExercise[sub.id];
-  container.innerHTML = opts.map(ex => exOptionRow(sub.id, ex, ex === picked)).join('');
+  const hint = opts.length > 1 ? `<p class="ex-hint">Los tres trabajan el mismo músculo — elige el que te resulte más cómodo.</p>` : '';
+  container.innerHTML = opts.map(ex => exOptionRow(sub.id, ex, ex === picked)).join('') + hint;
   container.querySelectorAll('.ex-option').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
       if(e.target.classList.contains('ver-link')) return;
