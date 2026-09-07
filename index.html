@@ -245,6 +245,16 @@
     line-height:1;
     min-width:38px;
   }
+  .day-num-kicker{
+    display:block;
+    font-family:'Work Sans',sans-serif;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin-top:2px;
+  }
   .day-title{flex:1;}
   .day-title .name{font-size:17px;font-weight:700;margin:0 0 3px;}
   .day-title .desc{font-size:13px;color:var(--text-dim);margin:0;}
@@ -1661,7 +1671,7 @@ function dayCard(day, slotNum, muscle, sub){
   return `
     <div class="day" data-accent="${day.accent}">
       <div class="day-head">
-        <div class="day-num">${num}</div>
+        <div class="day-num">${num}<span class="day-num-kicker">Día</span></div>
         <div class="day-title">
           <p class="name">${day.name}</p>
           <p class="desc">${day.desc}</p>
@@ -1680,7 +1690,7 @@ function dayOrderAssignedCard(day, slotNum){
   return `
     <div class="day" data-accent="${day.accent}">
       <div class="day-head">
-        <div class="day-num">${num}</div>
+        <div class="day-num">${num}<span class="day-num-kicker">Día</span></div>
         <div class="day-title">
           <p class="name">${day.name} <span class="ver-link day-change-link" data-slot="${slotNum}" style="cursor:pointer;">Cambiar</span></p>
           <p class="desc">${day.desc}</p>
@@ -1708,7 +1718,7 @@ function dayPickerCard(slotNum){
   return `
     <div class="day">
       <div class="day-head">
-        <div class="day-num" style="color:var(--text-dim);">${num}</div>
+        <div class="day-num" style="color:var(--text-dim);">${num}<span class="day-num-kicker">Día</span></div>
         <div class="day-title day-title-arrow">${arrowDownSvg}</div>
       </div>
       <div class="muscles">
@@ -2687,6 +2697,11 @@ function goToChecklistFromHome(){
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
   continueBtn.style.visibility = 'visible';
+  // El avance dentro de "Programa tu entreno" es solo con Anterior/Siguiente
+  // de la barra inferior — la flechita del encabezado se oculta para no
+  // competir con esos botones (saldría de toda la pantalla en vez de
+  // retroceder un paso).
+  document.getElementById('homeBackBtn').style.visibility = 'hidden';
   window.scrollTo(0,0);
   pushNav();
 }
