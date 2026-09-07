@@ -1709,7 +1709,6 @@ function dayPickerCard(slotNum){
 
 const board = document.getElementById('board');
 const dayOrderBoard = document.getElementById('dayOrderBoard');
-dayOrderBoard.innerHTML = [1,2,3].map(s=>`<div id="dayOrderSlot-${s}"></div>`).join('');
 
 // Qué rutina (accent 1=Empuje, 2=Pierna y core, 3=Tirón) va en cada día
 // (slot 1, 2, 3). Empieza vacío — el usuario elige día por día en "Elige el
@@ -1768,8 +1767,20 @@ function renderDayOrderSlot(slotNum){
   }
 }
 
+// Mientras falten días por asignar, se ve UNA sola tarjeta — la del
+// próximo día sin elegir — para ir programando de a uno, sin agobiar con
+// los 3 juntos. Ya con los 3 elegidos, se ven los 3 en resumen (con
+// "Cambiar" cada uno) para poder revisar antes de tocar Continuar.
 function renderAllDayOrderSlots(){
-  [1,2,3].forEach(s => renderDayOrderSlot(s));
+  const pending = [1,2,3].filter(s => !dayAssignment[s]);
+  if(pending.length > 0){
+    const current = pending[0];
+    dayOrderBoard.innerHTML = `<div id="dayOrderSlot-${current}"></div>`;
+    renderDayOrderSlot(current);
+  } else {
+    dayOrderBoard.innerHTML = [1,2,3].map(s=>`<div id="dayOrderSlot-${s}"></div>`).join('');
+    [1,2,3].forEach(s => renderDayOrderSlot(s));
+  }
 }
 
 // Si con la asignación actual solo queda un día y una rutina sin usar, ese
@@ -3535,7 +3546,18 @@ async function routeInitialScreen(){
       .select('id', { count: 'exact', head: true })
       .eq('user_id', currentUser.id);
     if(!error && (count || 0) === 0){
-      goToOnboarding();
+      // Todavía no terminó ningún entreno. Si ya había empezado a armar su
+      // primera rutina (aunque no la haya guardado del todo) antes de
+      // salir de la app o cerrarla, retomamos justo donde iba en vez de
+      // mandarlo de nuevo a la pantalla de bienvenida.
+      const daysAssigned = [1,2,3].filter(s => dayAssignment[s]).length;
+      if(daysAssigned === 3){
+        goToChecklistFromHome();
+      } else if(daysAssigned > 0){
+        goToDayOrder();
+      } else {
+        goToOnboarding();
+      }
       return;
     }
   }catch(e){
