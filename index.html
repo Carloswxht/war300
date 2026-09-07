@@ -2908,6 +2908,7 @@ continueBtn.addEventListener('click', async ()=>{
     goToChecklistFromHome();
   }
   else if(currentView === 'checklist'){
+    await persistState(true);
     const advanced = advanceChecklistStep();
     if(!advanced) goToExecution();
   }
