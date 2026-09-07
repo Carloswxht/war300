@@ -1614,8 +1614,9 @@ DAYS.forEach(day=>{
 });
 
 function subRow(s){
+  const onClass = checkedSubIds.has(s.id) ? ' on' : '';
   return `
-    <div class="sub" data-sub="${s.id}">
+    <div class="sub${onClass}" data-sub="${s.id}">
       <div class="sub-head" data-sub-head="${s.id}">
         <div class="box">${checkSvg}</div>
         <div class="sub-text">
@@ -1627,9 +1628,11 @@ function subRow(s){
     </div>`;
 }
 
+// Ya no hace falta acordeón: en "Programa tu entreno" solo se muestra un
+// músculo a la vez, así que siempre va abierto de una.
 function muscleBlock(m){
   return `
-    <div class="muscle">
+    <div class="muscle open">
       <div class="muscle-head">
         <div class="muscle-label">${m.name}</div>
         ${chevronSvg}
@@ -1644,9 +1647,9 @@ function muscleBlock(m){
 
 const arrowDownSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-// Tarjeta de un día en "Programa tu entreno" (con músculos) — ya asignado,
-// solo se muestra en el orden elegido, sin picker ni "Cambiar" aquí.
-function dayCard(day, slotNum){
+// Tarjeta de "Programa tu entreno": el día actual, con UN solo músculo a
+// la vez (el del paso en el que va el usuario) — ya abierto, sin acordeón.
+function dayCard(day, slotNum, muscle){
   const num = String(slotNum).padStart(2,'0');
   return `
     <div class="day" data-accent="${day.accent}">
@@ -1658,7 +1661,7 @@ function dayCard(day, slotNum){
         </div>
       </div>
       <div class="muscles">
-        ${day.muscles.map(muscleBlock).join('')}
+        ${muscleBlock(muscle)}
       </div>
     </div>`;
 }
@@ -1717,30 +1720,75 @@ const dayOrderBoard = document.getElementById('dayOrderBoard');
 // tener orden guardado), "Programa tu entreno" usa el orden de fábrica.
 let dayAssignment = { 1:null, 2:null, 3:null };
 
-// Pinta "Programa tu entreno": los 3 días, ya en el orden elegido, con sus
-// músculos — sin picker, sin "Cambiar". Se puede llamar varias veces (cada
-// vez que se entra a la pantalla) para reflejar el orden más reciente.
+// Qué sub-músculos están marcados. Es la fuente de verdad real — antes esto
+// vivía solo como clase ".on" en el DOM, lo cual funcionaba porque todos
+// los músculos estaban siempre pintados a la vez. Ahora "Programa tu
+// entreno" solo pinta un músculo a la vez, así que el resto de la app
+// (armar la sesión de hoy, guardar en Supabase, autoprogramar el día) lee
+// de aquí en vez de buscar en el tablero.
+const checkedSubIds = new Set();
+
+// En qué paso del checklist va el usuario: qué día (slot 1/2/3) y qué
+// músculo de ese día (índice dentro de day.muscles). Arranca siempre en el
+// primer músculo del día 1 cada vez que se entra a "Programa tu entreno".
+let checklistStep = { day: 1, muscleIndex: 0 };
+
+function currentChecklistDay(){
+  const accent = dayAssignment[checklistStep.day] || checklistStep.day;
+  return DAYS.find(d => d.accent === accent);
+}
+
+// Pinta "Programa tu entreno": una sola tarjeta con el día y el músculo del
+// paso actual — sin los demás músculos ni días a la vista, para ir
+// programando de a uno. Se puede llamar varias veces (cada vez que se
+// avanza de músculo o de día) para reflejar el paso más reciente.
 function renderChecklistBoard(){
-  board.innerHTML = [1,2,3].map(slotNum=>{
-    const accent = dayAssignment[slotNum] || slotNum;
-    const dayObj = DAYS.find(d=>d.accent === accent);
-    return dayCard(dayObj, slotNum);
-  }).join('');
-  board.querySelectorAll('.muscle-head').forEach(head=>{
-    head.addEventListener('click', ()=>{
-      head.closest('.muscle').classList.toggle('open');
-    });
-  });
+  const dayObj = currentChecklistDay();
+  const muscle = dayObj.muscles[checklistStep.muscleIndex];
+  board.innerHTML = dayCard(dayObj, checklistStep.day, muscle);
   board.querySelectorAll('.sub-head').forEach(head=>{
     head.addEventListener('click', (e)=>{
       e.stopPropagation();
       const subEl = head.closest('.sub');
       const sub = SUB_INDEX[subEl.dataset.sub];
+      const nowOn = !subEl.classList.contains('on');
       subEl.classList.toggle('on');
+      if(nowOn) checkedSubIds.add(sub.id); else checkedSubIds.delete(sub.id);
       persistState(true);
       renderSubExercises(sub);
     });
   });
+  muscle.subs.forEach(sub => renderSubExercises(sub));
+  updateChecklistContinueLabel();
+}
+
+// "Siguiente" en vez de "Continuar" mientras queden músculos/días por
+// programar — "Continuar" solo aparece en el último músculo del último día,
+// cuando lo que sigue es pasar a la ejecución del entreno.
+function updateChecklistContinueLabel(){
+  const dayObj = currentChecklistDay();
+  const isLast = checklistStep.day === 3 && checklistStep.muscleIndex === dayObj.muscles.length - 1;
+  const label = isLast ? 'Continuar' : 'Siguiente';
+  continueBtn.innerHTML = `${label} <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+// Avanza un paso: siguiente músculo del mismo día, o si ya era el último
+// músculo, salta al primer músculo del día siguiente. Devuelve false
+// cuando ya no queda nada por programar (día 3, último músculo) — ahí es
+// cuando corresponde pasar a la ejecución del entreno.
+function advanceChecklistStep(){
+  const dayObj = currentChecklistDay();
+  if(checklistStep.muscleIndex < dayObj.muscles.length - 1){
+    checklistStep.muscleIndex++;
+  } else if(checklistStep.day < 3){
+    checklistStep.day++;
+    checklistStep.muscleIndex = 0;
+  } else {
+    return false;
+  }
+  renderChecklistBoard();
+  window.scrollTo(0,0);
+  return true;
 }
 
 function renderDayOrderSlot(slotNum){
@@ -1816,8 +1864,7 @@ renderChecklistBoard();
 function renderSubExercises(sub){
   const container = document.getElementById('subEx-' + sub.id);
   if(!container) return;
-  const subEl = board.querySelector(`.sub[data-sub="${sub.id}"]`);
-  const isOn = subEl && subEl.classList.contains('on');
+  const isOn = checkedSubIds.has(sub.id);
   if(!isOn){ container.innerHTML = ''; return; }
   const opts = exercisesFor(sub.muscleName, sub.name);
   if(opts.length === 0){ container.innerHTML = ''; return; }
@@ -1869,15 +1916,15 @@ function exCard(sub, accentIdx){
 }
 
 function renderExercisesView(){
-  const checkedSubs = board.querySelectorAll('.sub.on');
-  if(checkedSubs.length === 0){
+  const checkedIds = Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id));
+  if(checkedIds.length === 0){
     showToast('Marca al menos un sub-músculo primero.');
     return false;
   }
   let html = '';
   let lastDay = null;
-  checkedSubs.forEach(el=>{
-    const sub = SUB_INDEX[el.dataset.sub];
+  checkedIds.forEach(id=>{
+    const sub = SUB_INDEX[id];
     if(!sub) return;
     const dayObj = DAYS.find(d=>d.name === sub.dayName);
     const accentIdx = dayObj ? dayObj.accent : 1;
@@ -2073,10 +2120,10 @@ function buildProgressChart(points){
 }
 
 function buildExecList(){
-  const checkedSubs = board.querySelectorAll('.sub.on');
+  const checkedIds = Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id));
   execList = [];
-  checkedSubs.forEach(el=>{
-    const sub = SUB_INDEX[el.dataset.sub];
+  checkedIds.forEach(id=>{
+    const sub = SUB_INDEX[id];
     if(!sub) return;
     if(!chosenExercise[sub.id]){
       const opts = exercisesFor(sub.muscleName, sub.name);
@@ -2554,11 +2601,11 @@ function goHome(){
 
 function goToChecklistFromHome(){
   hideAllViews();
+  checklistStep = { day: 1, muscleIndex: 0 };
   renderChecklistBoard();
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
   continueBtn.style.visibility = 'visible';
-  continueBtn.innerHTML = `Continuar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   window.scrollTo(0,0);
   pushNav();
 }
@@ -2610,9 +2657,8 @@ async function getNextDayAccent(){
 
 function autoProgramDay(accent){
   const dayObj = DAYS.find(d=>d.accent === accent) || DAYS[0];
-  board.querySelectorAll('.sub').forEach(el=>{
-    const sub = SUB_INDEX[el.dataset.sub];
-    if(sub && sub.dayName === dayObj.name) el.classList.add('on');
+  Object.values(SUB_INDEX).forEach(sub=>{
+    if(sub.dayName === dayObj.name) checkedSubIds.add(sub.id);
   });
   return dayObj;
 }
@@ -2679,17 +2725,17 @@ async function renderRankBar(){
 async function renderHome(){
   renderRankBar();
   const homeToday = document.getElementById('homeToday');
-  let checkedEls = [...board.querySelectorAll('.sub.on')];
+  let checkedIds = Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id));
 
-  if(checkedEls.length === 0 && currentUser){
+  if(checkedIds.length === 0 && currentUser){
     const nextAccent = await getNextDayAccent();
     const dayObj = autoProgramDay(nextAccent);
-    checkedEls = [...board.querySelectorAll('.sub.on')];
+    checkedIds = Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id));
     persistState(true);
   }
 
-  const items = checkedEls.map(el=>{
-    const sub = SUB_INDEX[el.dataset.sub];
+  const items = checkedIds.map(id=>{
+    const sub = SUB_INDEX[id];
     return sub ? `${sub.muscleName} — ${sub.name}` : '';
   }).filter(Boolean);
 
@@ -2790,6 +2836,7 @@ async function finishSession(){
     rankedUp: rankBefore.current.name !== rankAfter.current.name,
   };
 
+  checkedSubIds.clear();
   board.querySelectorAll('.sub.on').forEach(el=> el.classList.remove('on'));
   execList.forEach(i => { delete chosenExercise[i.subId]; });
   await persistState(true);
@@ -2839,7 +2886,10 @@ continueBtn.addEventListener('click', async ()=>{
     }
     goToChecklistFromHome();
   }
-  else if(currentView === 'checklist') goToExecution();
+  else if(currentView === 'checklist'){
+    const advanced = advanceChecklistStep();
+    if(!advanced) goToExecution();
+  }
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
     commitCurrentCard();
@@ -2881,12 +2931,11 @@ let currentUser = null;
 
 function buildRows(){
   const rows = [];
-  board.querySelectorAll('.sub').forEach(el=>{
-    const subId = el.dataset.sub;
+  Object.keys(SUB_INDEX).forEach(subId=>{
     rows.push({
       user_id: currentUser.id,
       work_key: subId,
-      checked: el.classList.contains('on'),
+      checked: checkedSubIds.has(subId),
       ejercicio_elegido: chosenExercise[subId] || null,
     });
   });
@@ -2923,10 +2972,6 @@ async function loadState(){
     let themeRaw = null;
     const rows = data || [];
 
-    // Primera pasada: tema, paletas propias y qué rutina va en cada día.
-    // Hay que aplicar la asignación de días y volver a pintar el tablero
-    // ANTES de marcar sub-músculos, porque un .sub solo existe en el DOM
-    // una vez que a ese día ya se le asignó una rutina.
     rows.forEach(row=>{
       if(row.work_key === '__theme__'){
         themeRaw = row.series;
@@ -2937,26 +2982,17 @@ async function loadState(){
           const saved = JSON.parse(row.reps || '{}');
           [1,2,3].forEach(s=>{ if(saved[s]) dayAssignment[s] = Number(saved[s]); });
         }catch(e){ /* si viene corrupta, el usuario simplemente vuelve a elegir */ }
-      }
-    });
-    renderChecklistBoard();
-
-    // Segunda pasada: progreso guardado por ejercicio y sub-músculos marcados.
-    rows.forEach(row=>{
-      if(row.work_key === '__theme__' || row.work_key === '__custom_themes__' || row.work_key === '__day_slots__') return;
-      if(row.work_key.includes('::')){
+      } else if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
-        if(row.checked){
-          const el = board.querySelector(`.sub[data-sub="${row.work_key}"]`);
-          if(el) el.classList.add('on');
-        }
+        if(row.checked) checkedSubIds.add(row.work_key);
         if(row.ejercicio_elegido) chosenExercise[row.work_key] = row.ejercicio_elegido;
       }
     });
-    // Refresca el panel de ejercicios de cada sub-músculo ya marcado, para
-    // que se vea de una vez la elección guardada al recargar la app.
-    Object.keys(SUB_INDEX).forEach(id => renderSubExercises(SUB_INDEX[id]));
+    // Ya con dayAssignment y checkedSubIds listos, pintamos una sola vez —
+    // el checklist sale mostrando de una el músculo del paso actual, ya
+    // marcado si venía marcado de antes.
+    renderChecklistBoard();
     if(themeRaw && themeRaw.startsWith('custom:')){
       const custom = customThemes.find(c => 'custom:'+c.id === themeRaw);
       if(custom) applyCustomTheme(custom, true);
