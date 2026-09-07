@@ -731,6 +731,17 @@
   }
   .exec-done h2{font-family:'Archivo Black',sans-serif;font-size:24px;margin:0 0 8px;}
   .exec-done p{color:var(--text-dim);font-size:13.5px;margin:0;}
+  .summary-toggle-link{
+    display:inline-block;
+    margin-top:16px;
+    font-family:'Archivo',sans-serif;
+    font-size:14px;font-weight:700;
+    color:var(--text);
+    text-decoration:underline;
+    text-underline-offset:3px;
+    cursor:pointer;
+  }
+  .summary-toggle-link:active{opacity:.6;}
 
   .summary-stats{
     display:flex;gap:10px;margin:22px 0 0;
@@ -1356,11 +1367,13 @@
   <div id="view-routine-summary">
     <div class="exec-done">
       <h2>¡Rutina guardada! ✅</h2>
-      <p>Tu rutina ha sido guardada con éxito. Este es tu resumen:</p>
+      <p>Tu rutina ha sido guardada con éxito.</p>
+      <a id="routineSummaryToggle" class="summary-toggle-link">Ver rutina</a>
     </div>
-    <div class="board" id="routineSummaryBoard"></div>
+    <div class="board" id="routineSummaryBoard" style="display:none;"></div>
     <div style="padding:4px 20px 30px;">
-      <button id="routineSummaryStartBtn" style="width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">¿Quieres empezar hoy?</button>
+      <button id="routineSummaryStartBtn" style="width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">Comenzar rutina</button>
+      <button id="routineSummaryStoreBtn" style="margin-top:10px;width:100%;background:transparent;color:var(--text-dim);border:1px solid var(--line);font-family:'Archivo',sans-serif;font-weight:700;font-size:13.5px;padding:13px;border-radius:12px;cursor:pointer;">Ir a nuestra tienda</button>
     </div>
   </div>
 
@@ -3181,6 +3194,16 @@ prevBtn.addEventListener('click', async ()=>{
 });
 
 document.getElementById('routineSummaryStartBtn').addEventListener('click', goToExecution);
+document.getElementById('routineSummaryStoreBtn').addEventListener('click', goToStore);
+
+document.getElementById('routineSummaryToggle').addEventListener('click', ()=>{
+  const board = document.getElementById('routineSummaryBoard');
+  const toggle = document.getElementById('routineSummaryToggle');
+  const isHidden = board.style.display === 'none';
+  board.style.display = isHidden ? 'block' : 'none';
+  toggle.textContent = isHidden ? 'Ocultar rutina' : 'Ver rutina';
+  if(isHidden) board.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 document.getElementById('homeBackBtn').addEventListener('click', ()=> history.back());
 
@@ -3954,6 +3977,8 @@ function renderRoutineSummary(){
 function goToRoutineSummary(){
   hideAllViews();
   renderRoutineSummary();
+  document.getElementById('routineSummaryBoard').style.display = 'none';
+  document.getElementById('routineSummaryToggle').textContent = 'Ver rutina';
   viewRoutineSummary.style.display = 'block';
   currentView = 'routine-summary';
   continueBtn.style.visibility = 'hidden';
