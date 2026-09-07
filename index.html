@@ -1794,6 +1794,18 @@ function updateChecklistContinueLabel(){
 // último músculo, salta al primer sub-músculo del día siguiente. Devuelve
 // false cuando ya no queda nada por programar — ahí corresponde pasar a la
 // ejecución del entreno.
+// Valida el paso cargado contra la estructura real (por si algo quedó
+// desactualizado) — nunca deja day/muscleIndex/subIndex apuntando a algo
+// que ya no existe, para que renderChecklistBoard no se rompa.
+function clampChecklistStep(){
+  if(checklistStep.day < 1 || checklistStep.day > 3) checklistStep.day = 1;
+  const dayObj = currentChecklistDay();
+  if(!dayObj){ checklistStep.day = 1; checklistStep.muscleIndex = 0; checklistStep.subIndex = 0; return; }
+  if(checklistStep.muscleIndex < 0 || checklistStep.muscleIndex >= dayObj.muscles.length) checklistStep.muscleIndex = 0;
+  const muscle = dayObj.muscles[checklistStep.muscleIndex];
+  if(checklistStep.subIndex < 0 || checklistStep.subIndex >= muscle.subs.length) checklistStep.subIndex = 0;
+}
+
 function advanceChecklistStep(){
   const dayObj = currentChecklistDay();
   const muscle = currentChecklistMuscle();
@@ -2622,7 +2634,7 @@ function goHome(){
 
 function goToChecklistFromHome(){
   hideAllViews();
-  checklistStep = { day: 1, muscleIndex: 0, subIndex: 0 };
+  clampChecklistStep();
   renderChecklistBoard();
   viewChecklist.style.display = 'block';
   currentView = 'checklist';
@@ -2860,7 +2872,9 @@ async function finishSession(){
   checkedSubIds.clear();
   board.querySelectorAll('.sub.on').forEach(el=> el.classList.remove('on'));
   execList.forEach(i => { delete chosenExercise[i.subId]; });
+  checklistStep = { day: 1, muscleIndex: 0, subIndex: 0 };
   await persistState(true);
+  await persistChecklistStep();
 }
 
 function goToExercises(){
@@ -2910,7 +2924,8 @@ continueBtn.addEventListener('click', async ()=>{
   else if(currentView === 'checklist'){
     await persistState(true);
     const advanced = advanceChecklistStep();
-    if(!advanced) goToExecution();
+    if(advanced) await persistChecklistStep();
+    else goToExecution();
   }
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
@@ -3004,6 +3019,13 @@ async function loadState(){
           const saved = JSON.parse(row.reps || '{}');
           [1,2,3].forEach(s=>{ if(saved[s]) dayAssignment[s] = Number(saved[s]); });
         }catch(e){ /* si viene corrupta, el usuario simplemente vuelve a elegir */ }
+      } else if(row.work_key === '__checklist_step__'){
+        try{
+          const saved = JSON.parse(row.reps || '{}');
+          if(Number.isInteger(saved.day)) checklistStep.day = saved.day;
+          if(Number.isInteger(saved.muscleIndex)) checklistStep.muscleIndex = saved.muscleIndex;
+          if(Number.isInteger(saved.subIndex)) checklistStep.subIndex = saved.subIndex;
+        }catch(e){ /* si viene corrupto, simplemente arranca en el día 1 */ }
       } else if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
@@ -3011,9 +3033,10 @@ async function loadState(){
         if(row.ejercicio_elegido) chosenExercise[row.work_key] = row.ejercicio_elegido;
       }
     });
-    // Ya con dayAssignment y checkedSubIds listos, pintamos una sola vez —
-    // el checklist sale mostrando de una el músculo del paso actual, ya
-    // marcado si venía marcado de antes.
+    // Ya con dayAssignment, checkedSubIds y el paso guardado listos,
+    // pintamos una sola vez — el checklist sale mostrando de una el
+    // sub-músculo donde el usuario se quedó, ya marcado si venía marcado.
+    clampChecklistStep();
     renderChecklistBoard();
     if(themeRaw && themeRaw.startsWith('custom:')){
       const custom = customThemes.find(c => 'custom:'+c.id === themeRaw);
@@ -3309,6 +3332,21 @@ async function persistDaySlots(){
     );
   }catch(e){
     // si falla, la elección igual queda visible en pantalla, solo no persiste
+  }
+}
+
+// Guarda en qué paso del checklist (día/músculo/sub-músculo) va el
+// usuario, para que si sale de la app y vuelve, retome ahí en vez de
+// arrancar de nuevo en el día 1.
+async function persistChecklistStep(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__checklist_step__', reps: JSON.stringify(checklistStep) },
+      { onConflict: 'user_id,work_key' }
+    );
+  }catch(e){
+    // si falla, el paso igual queda visible en pantalla, solo no persiste
   }
 }
 
