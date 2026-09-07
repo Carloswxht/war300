@@ -326,6 +326,7 @@
   }
   .continue-mini svg{width:16px;height:16px;}
   .continue-mini:active{opacity:.6;}
+  .prev-mini{right:auto;left:14px;}
 
   #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store, #view-onboarding, #view-split-picker{display:none;}
 
@@ -1417,6 +1418,10 @@
     <button class="hamburger" id="menuBtn" aria-label="Menú">
       <span></span><span></span><span></span>
     </button>
+    <button class="continue-mini prev-mini" id="prevBtn" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Anterior
+    </button>
     <button class="continue-mini" id="continueBtn">
       Continuar
       <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1715,6 +1720,7 @@ function dayPickerCard(slotNum){
 const board = document.getElementById('board');
 const dayOrderBoard = document.getElementById('dayOrderBoard');
 const continueBtn = document.getElementById('continueBtn');
+const prevBtn = document.getElementById('prevBtn');
 const chosenExercise = {}; // subId -> nombre de ejercicio elegido
 
 // Qué rutina (accent 1=Empuje, 2=Pierna y core, 3=Tirón) va en cada día
@@ -1802,6 +1808,32 @@ function isLastChecklistStep(){
 function updateChecklistContinueLabel(){
   const label = isLastChecklistStep() ? 'Continuar' : 'Siguiente';
   continueBtn.innerHTML = `${label} <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const isFirst = checklistStep.day === 1 && checklistStep.muscleIndex === 0 && checklistStep.subIndex === 0;
+  prevBtn.style.display = isFirst ? 'none' : 'flex';
+}
+
+// Retrocede un paso: sub-músculo anterior del mismo músculo; si ya era el
+// primero, vuelve al último sub-músculo del músculo anterior; si ya era el
+// primer músculo, vuelve al último sub-músculo del último músculo del día
+// anterior. Devuelve false si ya está en el primer paso de todos.
+function retreatChecklistStep(){
+  if(checklistStep.subIndex > 0){
+    checklistStep.subIndex--;
+  } else if(checklistStep.muscleIndex > 0){
+    checklistStep.muscleIndex--;
+    const muscle = currentChecklistDay().muscles[checklistStep.muscleIndex];
+    checklistStep.subIndex = muscle.subs.length - 1;
+  } else if(checklistStep.day > 1){
+    checklistStep.day--;
+    const dayObj = currentChecklistDay();
+    checklistStep.muscleIndex = dayObj.muscles.length - 1;
+    checklistStep.subIndex = dayObj.muscles[checklistStep.muscleIndex].subs.length - 1;
+  } else {
+    return false;
+  }
+  renderChecklistBoard();
+  window.scrollTo(0,0);
+  return true;
 }
 
 // Avanza un paso: siguiente sub-músculo del mismo músculo; si ya era el
@@ -2518,6 +2550,7 @@ function hideAllViews(){
   viewOnboarding.style.display = 'none';
   viewSplitPicker.style.display = 'none';
   viewDayOrder.style.display = 'none';
+  prevBtn.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
   const storeVideo = document.getElementById('storeVideo');
@@ -2956,6 +2989,12 @@ continueBtn.addEventListener('click', async ()=>{
     renderExecCard();
     window.scrollTo(0,0);
   }
+});
+
+prevBtn.addEventListener('click', async ()=>{
+  if(currentView !== 'checklist') return;
+  const retreated = retreatChecklistStep();
+  if(retreated) await persistChecklistStep();
 });
 
 document.getElementById('homeBackBtn').addEventListener('click', ()=> history.back());
