@@ -3521,6 +3521,13 @@ function goToSplitPicker(){
 // "Programa tu entreno" en ese mismo orden.
 function goToDayOrder(){
   hideAllViews();
+  if([1,2,3].every(s => !dayAssignment[s])){
+    // Primera vez que llega aquí, sin nada elegido: arranca directo con el
+    // orden de fábrica (01 Empuje, 02 Pierna y core, 03 Tirón) ya puesto,
+    // en vez de 3 tarjetas vacías — si quiere otro orden, toca "Cambiar".
+    [1,2,3].forEach(s => { dayAssignment[s] = s; });
+    persistDaySlots();
+  }
   renderAllDayOrderSlots();
   viewDayOrder.style.display = 'block';
   currentView = 'day-order';
