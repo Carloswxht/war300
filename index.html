@@ -517,6 +517,18 @@
     flex-shrink:0;
   }
   .ver-link:active{opacity:.5;}
+  .ver-link-custom{
+    margin-left:auto;
+    font-size:12px;font-weight:700;
+    color:var(--accent, var(--text-dim));
+    padding:4px 6px;
+    flex-shrink:0;
+    text-decoration:none;
+  }
+  .ver-link-custom:active{opacity:.5;}
+  .add-ex-row{cursor:pointer;}
+  .add-ex-row .ex-option-name{color:var(--accent);font-weight:700;}
+  .add-ex-row:active{opacity:.6;}
 
   .modal-overlay{
     display:none;
@@ -1043,6 +1055,20 @@
     border:none;font-weight:700;font-size:14px;
     padding:14px;border-radius:12px;cursor:pointer;
   }
+  .add-ex-or{
+    text-align:center;font-size:11.5px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.5px;
+    margin:12px 0 0;
+  }
+  .add-ex-upload{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    cursor:pointer;color:var(--text-dim);font-weight:600;
+  }
+  .add-ex-upload:active{opacity:.6;}
+  .add-ex-filename{
+    font-size:12px;color:var(--accent, var(--text));
+    margin:6px 2px 0;min-height:14px;
+  }
   .dropdown{
     position:fixed;
     background:var(--panel);
@@ -1437,6 +1463,27 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="addExOverlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3>Agregar ejercicio</h3>
+        <button class="modal-close" id="addExClose" aria-label="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <input type="text" class="custom-name-input" id="addExName" placeholder="Nombre del ejercicio" style="margin-top:16px;">
+      <input type="text" class="custom-name-input" id="addExVideo" placeholder="Link del video (opcional)">
+      <p class="add-ex-or">o</p>
+      <label class="custom-name-input add-ex-upload" for="addExVideoFile">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L7 9M12 4L17 9M5 20H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Subir video desde tu equipo
+      </label>
+      <input type="file" id="addExVideoFile" accept="video/*" style="display:none;">
+      <p class="add-ex-filename" id="addExVideoFileName"></p>
+      <button class="save-custom-btn" id="addExSave">Guardar ejercicio</button>
+    </div>
+  </div>
+
   <button class="store-fab" id="storeFabBtn" aria-label="Tienda">
     <svg viewBox="0 0 24 24" fill="none"><path d="M4 8L5.5 4H18.5L20 8M4 8V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V8M4 8H20M9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
@@ -1765,6 +1812,10 @@ let dayAssignment = { 1:null, 2:null, 3:null };
 // de aquí en vez de buscar en el tablero.
 const checkedSubIds = new Set();
 
+// Ejercicios que el propio cliente agregó, además de los 3 de fábrica —
+// uno por sub-músculo. Se cargan de Supabase al iniciar sesión.
+let customExercises = {};
+
 // Qué sub-músculos ya tuvieron su "primera aparición" en el paso a paso —
 // o sea, ya se decidió algo sobre ellos (marcados por defecto al llegar,
 // o destildados a propósito). Sirve para no volver a marcar por defecto
@@ -1976,13 +2027,16 @@ function renderSubExercises(sub){
   const isOn = checkedSubIds.has(sub.id);
   if(!isOn){ container.innerHTML = ''; return; }
   const opts = exercisesFor(sub.muscleName, sub.name);
-  if(opts.length === 0){ container.innerHTML = ''; return; }
-  if(!chosenExercise[sub.id]) chosenExercise[sub.id] = opts[0];
+  const custom = customExercises[sub.id] || [];
+  const videoBySub = {};
+  custom.forEach(c => { videoBySub[c.nombre] = c.video_url; });
+  const allNames = [...opts, ...custom.map(c => c.nombre)];
+  if(allNames.length > 0 && !chosenExercise[sub.id]) chosenExercise[sub.id] = allNames[0];
   const picked = chosenExercise[sub.id];
-  container.innerHTML = opts.map(ex => exOptionRow(sub.id, ex, ex === picked)).join('');
-  container.querySelectorAll('.ex-option').forEach(opt=>{
+  container.innerHTML = allNames.map(ex => exOptionRow(sub.id, ex, ex === picked, videoBySub[ex])).join('') + addExerciseRow(sub.id);
+  container.querySelectorAll('.ex-option:not(.add-ex-row)').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
-      if(e.target.classList.contains('ver-link')) return;
+      if(e.target.classList.contains('ver-link') || e.target.classList.contains('ver-link-custom')) return;
       e.stopPropagation();
       chosenExercise[sub.id] = opt.dataset.ex;
       persistState(true);
@@ -1995,6 +2049,13 @@ function renderSubExercises(sub){
       openAnimModal(link.dataset.ver);
     });
   });
+  const addRow = container.querySelector('.add-ex-row');
+  if(addRow){
+    addRow.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openAddExerciseModal(sub.id);
+    });
+  }
 }
 
 // ---- Vista de ejercicios (pantalla "Continuar") ----
@@ -2002,12 +2063,28 @@ const viewChecklist = document.getElementById('view-checklist');
 const viewExercises = document.getElementById('view-exercises');
 const exBoard = document.getElementById('exBoard');
 
-function exOptionRow(subId, exName, isPicked, accentClass){
+function exOptionRow(subId, exName, isPicked, videoUrl){
+  const hasPattern = !!EXERCISE_PATTERN[exName];
+  let verHtml = '';
+  if(hasPattern){
+    verHtml = `<div class="ver-link" data-ver="${exName}">Ver</div>`;
+  } else if(videoUrl){
+    verHtml = `<a class="ver-link-custom" href="${videoUrl}" target="_blank" rel="noopener">Ver</a>`;
+  }
   return `
     <div class="ex-option ${isPicked ? 'picked':''}" data-sub="${subId}" data-ex="${exName}">
       <div class="radio"></div>
       <div class="ex-option-name">${exName}</div>
-      <div class="ver-link" data-ver="${exName}">Ver</div>
+      ${verHtml}
+    </div>`;
+}
+
+// Fila para que el cliente agregue su propio ejercicio a este sub-músculo,
+// al final de las opciones de fábrica.
+function addExerciseRow(subId){
+  return `
+    <div class="ex-option add-ex-row" data-add-sub="${subId}">
+      <div class="ex-option-name">+ Agregar ejercicio</div>
     </div>`;
 }
 
@@ -2104,6 +2181,77 @@ document.getElementById('modalClose').addEventListener('click', closeAnimModal);
 modalOverlay.addEventListener('click', (e)=>{
   if(e.target === modalOverlay) closeAnimModal();
 });
+
+// ---- Modal "Agregar ejercicio" — el cliente suma su propio ejercicio a
+// un sub-músculo, con nombre y video opcional: por link o subiendo un
+// archivo desde su equipo (uno u otro; el archivo tiene prioridad si puso
+// los dos) ----
+const addExOverlay = document.getElementById('addExOverlay');
+let addExTargetSub = null;
+
+function openAddExerciseModal(subId){
+  addExTargetSub = subId;
+  document.getElementById('addExName').value = '';
+  document.getElementById('addExVideo').value = '';
+  document.getElementById('addExVideoFile').value = '';
+  document.getElementById('addExVideoFileName').textContent = '';
+  addExOverlay.classList.add('open');
+}
+function closeAddExerciseModal(){
+  addExOverlay.classList.remove('open');
+  addExTargetSub = null;
+}
+document.getElementById('addExVideoFile').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  document.getElementById('addExVideoFileName').textContent = file ? file.name : '';
+});
+async function saveCustomExercise(){
+  const nombre = document.getElementById('addExName').value.trim();
+  if(!nombre){ showToast('Escribe el nombre del ejercicio.'); return; }
+  const linkVal = document.getElementById('addExVideo').value.trim();
+  const fileInput = document.getElementById('addExVideoFile');
+  const file = fileInput.files && fileInput.files[0];
+  const subId = addExTargetSub;
+  if(!subId || !currentUser) return;
+
+  const saveBtn = document.getElementById('addExSave');
+  const originalLabel = saveBtn.textContent;
+  saveBtn.disabled = true;
+  saveBtn.textContent = file ? 'Subiendo video...' : 'Guardando...';
+
+  try{
+    let videoUrl = linkVal || null;
+    if(file){
+      const path = `${currentUser.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await sb.storage.from('ejercicios-videos').upload(path, file);
+      if(uploadError) throw uploadError;
+      const { data: publicData } = sb.storage.from('ejercicios-videos').getPublicUrl(path);
+      videoUrl = publicData.publicUrl;
+    }
+    const { data, error } = await sb.from('ejercicios_personalizados')
+      .insert({ user_id: currentUser.id, sub_id: subId, nombre, video_url: videoUrl })
+      .select()
+      .single();
+    if(error) throw error;
+    if(!customExercises[subId]) customExercises[subId] = [];
+    customExercises[subId].push({ id: data.id, nombre, video_url: videoUrl });
+    chosenExercise[subId] = nombre;
+    closeAddExerciseModal();
+    const sub = SUB_INDEX[subId];
+    if(sub) renderSubExercises(sub);
+    await persistState(true);
+  }catch(e){
+    showToast('No se pudo guardar el ejercicio.');
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalLabel;
+  }
+}
+document.getElementById('addExClose').addEventListener('click', closeAddExerciseModal);
+addExOverlay.addEventListener('click', (e)=>{
+  if(e.target === addExOverlay) closeAddExerciseModal();
+});
+document.getElementById('addExSave').addEventListener('click', saveCustomExercise);
 
 // ---- Vista de ejecución (pantalla "Iniciar") ----
 const viewExecution = document.getElementById('view-execution');
@@ -3140,6 +3288,20 @@ async function loadState(){
         if(row.ejercicio_elegido) chosenExercise[row.work_key] = row.ejercicio_elegido;
       }
     });
+    // Ejercicios que el cliente agregó por su cuenta, agrupados por
+    // sub-músculo — hay que tenerlos listos antes de pintar, para que
+    // aparezcan junto a los de fábrica desde el primer momento.
+    customExercises = {};
+    try{
+      const { data: customRows, error: customError } = await sb.from('ejercicios_personalizados').select('*').eq('user_id', currentUser.id);
+      if(!customError && customRows){
+        customRows.forEach(row=>{
+          if(!customExercises[row.sub_id]) customExercises[row.sub_id] = [];
+          customExercises[row.sub_id].push({ id: row.id, nombre: row.nombre, video_url: row.video_url });
+        });
+      }
+    }catch(e){ /* si falla, simplemente no se muestran los personalizados guardados antes */ }
+
     // Ya con dayAssignment, checkedSubIds y el paso guardado listos,
     // pintamos una sola vez — el checklist sale mostrando de una el
     // sub-músculo donde el usuario se quedó, ya marcado si venía marcado.
