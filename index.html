@@ -1712,6 +1712,7 @@ function dayPickerCard(slotNum){
 
 const board = document.getElementById('board');
 const dayOrderBoard = document.getElementById('dayOrderBoard');
+const continueBtn = document.getElementById('continueBtn');
 
 // Qué rutina (accent 1=Empuje, 2=Pierna y core, 3=Tirón) va en cada día
 // (slot 1, 2, 3). Empieza vacío — el usuario elige día por día en "Elige el
@@ -1892,7 +1893,6 @@ function renderSubExercises(sub){
 const viewChecklist = document.getElementById('view-checklist');
 const viewExercises = document.getElementById('view-exercises');
 const exBoard = document.getElementById('exBoard');
-const continueBtn = document.getElementById('continueBtn');
 const chosenExercise = {}; // subId -> nombre de ejercicio elegido
 
 function exOptionRow(subId, exName, isPicked, accentClass){
