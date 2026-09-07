@@ -3549,11 +3549,19 @@ async function routeInitialScreen(){
       // Todavía no terminó ningún entreno. Si ya había empezado a armar su
       // primera rutina (aunque no la haya guardado del todo) antes de
       // salir de la app o cerrarla, retomamos justo donde iba en vez de
-      // mandarlo de nuevo a la pantalla de bienvenida.
+      // mandarlo de nuevo a la pantalla de bienvenida. Reconstruimos toda
+      // la cadena (cada goTo* empuja su propia entrada al historial) para
+      // que el botón "atrás" la recorra paso a paso, igual que si el
+      // usuario hubiera llegado ahí navegando en esta misma sesión.
       const daysAssigned = [1,2,3].filter(s => dayAssignment[s]).length;
       if(daysAssigned === 3){
+        goToOnboarding();
+        goToSplitPicker();
+        goToDayOrder();
         goToChecklistFromHome();
       } else if(daysAssigned > 0){
+        goToOnboarding();
+        goToSplitPicker();
         goToDayOrder();
       } else {
         goToOnboarding();
