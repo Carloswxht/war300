@@ -532,13 +532,15 @@
   .video-overlay.open{display:flex;}
   .video-frame-wrap{
     position:relative;
-    width:100%;
-    padding-top:56.25%;
+    width:100vw;
+    aspect-ratio:16/9;
+    max-height:100vh;
   }
   .video-frame-wrap iframe, .video-frame-wrap video{
     position:absolute;inset:0;
     width:100%;height:100%;
     border:none;
+    background:#000;
   }
   .video-modal-close{
     position:absolute;
@@ -2268,8 +2270,25 @@ function openVideoModal(url){
     return;
   }
   videoOverlay.classList.add('open');
+  // Pantalla completa real del dispositivo (tapa la barra del navegador),
+  // igual que hace YouTube — si el navegador no lo permite, el modal
+  // igual se ve bien, solo sin tapar esa barra.
+  const requestFs = videoOverlay.requestFullscreen || videoOverlay.webkitRequestFullscreen;
+  if(requestFs){
+    try{
+      const p = requestFs.call(videoOverlay);
+      if(p && p.catch) p.catch(()=>{});
+    }catch(e){ /* si el navegador no lo permite, el modal igual se ve bien */ }
+  }
 }
 function closeVideoModal(){
+  const exitFs = document.exitFullscreen || document.webkitExitFullscreen;
+  if((document.fullscreenElement || document.webkitFullscreenElement) && exitFs){
+    try{
+      const p = exitFs.call(document);
+      if(p && p.catch) p.catch(()=>{});
+    }catch(e){ /* nada que hacer si falla, el modal se cierra igual */ }
+  }
   videoOverlay.classList.remove('open');
   videoFrameWrap.innerHTML = '';
 }
