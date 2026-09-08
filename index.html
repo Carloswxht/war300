@@ -2221,11 +2221,26 @@ document.getElementById('addExVideoFile').addEventListener('change', (e)=>{
 async function saveCustomExercise(){
   const nombre = document.getElementById('addExName').value.trim();
   if(!nombre){ showToast('Escribe el nombre del ejercicio.'); return; }
+  const subId = addExTargetSub;
+  if(!subId || !currentUser) return;
+
+  // Evita duplicar un nombre ya existente para este sub-músculo (de
+  // fábrica o ya agregado antes) — si no, dos filas con el mismo nombre
+  // hacen que marcar una marque las dos, porque el ejercicio elegido se
+  // identifica por su nombre.
+  const sub = SUB_INDEX[subId];
+  const yaExiste = sub && (
+    exercisesFor(sub.muscleName, sub.name).some(ex => ex.toLowerCase() === nombre.toLowerCase())
+    || (customExercises[subId] || []).some(ex => ex.nombre.toLowerCase() === nombre.toLowerCase())
+  );
+  if(yaExiste){
+    showToast('Ya existe un ejercicio con ese nombre en este sub-músculo.');
+    return;
+  }
+
   const linkVal = document.getElementById('addExVideo').value.trim();
   const fileInput = document.getElementById('addExVideoFile');
   const file = fileInput.files && fileInput.files[0];
-  const subId = addExTargetSub;
-  if(!subId || !currentUser) return;
 
   const saveBtn = document.getElementById('addExSave');
   const originalLabel = saveBtn.textContent;
@@ -2250,7 +2265,6 @@ async function saveCustomExercise(){
     customExercises[subId].push({ id: data.id, nombre, video_url: videoUrl });
     chosenExercise[subId] = nombre;
     closeAddExerciseModal();
-    const sub = SUB_INDEX[subId];
     if(sub) renderSubExercises(sub);
     await persistState(true);
   }catch(e){
@@ -3266,8 +3280,18 @@ async function persistState(silent){
   }
 }
 
+// Si loadState ya está corriendo, una segunda llamada no debe arrancar
+// otra en paralelo — Supabase dispara onAuthStateChange más de una vez
+// (ej. al refrescar el token en segundo plano, no solo al iniciar sesión),
+// y dos cargas cruzadas duplicaban en memoria los ejercicios
+// personalizados (un push por cada carga, aunque en Supabase hubiera una
+// sola fila).
+let loadStateInFlight = false;
+
 async function loadState(){
   if(!currentUser) return;
+  if(loadStateInFlight) return;
+  loadStateInFlight = true;
   try{
     const { data, error } = await sb.from('progreso').select('*').eq('user_id', currentUser.id);
     if(error) throw error;
@@ -3339,6 +3363,8 @@ async function loadState(){
     }
   }catch(e){
     showToast('No se pudo cargar tu progreso.');
+  }finally{
+    loadStateInFlight = false;
   }
 }
 
