@@ -533,8 +533,7 @@
   .video-frame-wrap{
     position:relative;
     width:100vw;
-    aspect-ratio:16/9;
-    max-height:100vh;
+    height:100vh;
   }
   .video-frame-wrap iframe, .video-frame-wrap video{
     position:absolute;inset:0;
@@ -542,6 +541,7 @@
     border:none;
     background:#000;
   }
+  .video-frame-wrap video{object-fit:contain;}
   .video-modal-close{
     position:absolute;
     top:18px;right:18px;
