@@ -1825,6 +1825,18 @@ let dayAssignment = { 1:null, 2:null, 3:null };
 // de aquí en vez de buscar en el tablero.
 const checkedSubIds = new Set();
 
+// Videos reales de YouTube, verificados uno por uno contra canales de
+// entrenadores certificados — título, contenido y canal confirmados para
+// que correspondan exactamente al ejercicio. Se completa por lotes; los
+// ejercicios que todavía no tienen aquí un video verificado siguen
+// mostrando la animación esquemática de siempre.
+const EXERCISE_VIDEOS = {
+  'Crunch en máquina': 'https://www.youtube.com/watch?v=FwuwOMNYAyA',
+  'Peso muerto rumano': 'https://www.youtube.com/watch?v=UgqrPwoTick',
+  'Curl femoral sentado': 'https://www.youtube.com/watch?v=CBCPBnMzsMI',
+  'Curl femoral acostado': 'https://www.youtube.com/watch?v=dgC_vfiXVHg',
+};
+
 // Ejercicios que el propio cliente agregó, además de los 3 de fábrica —
 // uno por sub-músculo. Se cargan de Supabase al iniciar sesión.
 let customExercises = {};
@@ -2077,9 +2089,12 @@ const viewExercises = document.getElementById('view-exercises');
 const exBoard = document.getElementById('exBoard');
 
 function exOptionRow(subId, exName, isPicked, videoUrl){
+  const officialVideo = EXERCISE_VIDEOS[exName];
   const hasPattern = !!EXERCISE_PATTERN[exName];
   let verHtml = '';
-  if(hasPattern){
+  if(officialVideo){
+    verHtml = `<a class="ver-link-custom" href="${officialVideo}" target="_blank" rel="noopener">Ver</a>`;
+  } else if(hasPattern){
     verHtml = `<div class="ver-link" data-ver="${exName}">Ver</div>`;
   } else if(videoUrl){
     verHtml = `<a class="ver-link-custom" href="${videoUrl}" target="_blank" rel="noopener">Ver</a>`;
