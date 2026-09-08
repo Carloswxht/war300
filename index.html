@@ -515,20 +515,43 @@
     color:var(--accent, var(--text-dim));
     padding:4px 6px;
     flex-shrink:0;
+    cursor:pointer;
   }
   .ver-link:active{opacity:.5;}
-  .ver-link-custom{
-    margin-left:auto;
-    font-size:12px;font-weight:700;
-    color:var(--accent, var(--text-dim));
-    padding:4px 6px;
-    flex-shrink:0;
-    text-decoration:none;
-  }
-  .ver-link-custom:active{opacity:.5;}
   .add-ex-row{cursor:pointer;}
   .add-ex-row .ex-option-name{color:var(--accent);font-weight:700;}
   .add-ex-row:active{opacity:.6;}
+
+  .video-overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:#000;
+    z-index:50;
+    align-items:center;justify-content:center;
+  }
+  .video-overlay.open{display:flex;}
+  .video-frame-wrap{
+    position:relative;
+    width:100%;
+    padding-top:56.25%;
+  }
+  .video-frame-wrap iframe, .video-frame-wrap video{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    border:none;
+  }
+  .video-modal-close{
+    position:absolute;
+    top:18px;right:18px;
+    z-index:2;
+    width:38px;height:38px;
+    border-radius:50%;
+    background:rgba(255,255,255,.15);
+    border:none;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .video-modal-close:active{opacity:.6;}
 
   .modal-overlay{
     display:none;
@@ -1497,6 +1520,13 @@
     </div>
   </div>
 
+  <div class="video-overlay" id="videoOverlay">
+    <button class="video-modal-close" id="videoModalClose" aria-label="Cerrar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="video-frame-wrap" id="videoFrameWrap"></div>
+  </div>
+
   <button class="store-fab" id="storeFabBtn" aria-label="Tienda">
     <svg viewBox="0 0 24 24" fill="none"><path d="M4 8L5.5 4H18.5L20 8M4 8V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V8M4 8H20M9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
@@ -2061,7 +2091,7 @@ function renderSubExercises(sub){
   container.innerHTML = allNames.map(ex => exOptionRow(sub.id, ex, ex === picked, videoBySub[ex])).join('') + addExerciseRow(sub.id);
   container.querySelectorAll('.ex-option:not(.add-ex-row)').forEach(opt=>{
     opt.addEventListener('click', (e)=>{
-      if(e.target.classList.contains('ver-link') || e.target.classList.contains('ver-link-custom')) return;
+      if(e.target.classList.contains('ver-link')) return;
       e.stopPropagation();
       chosenExercise[sub.id] = opt.dataset.ex;
       persistState(true);
@@ -2071,7 +2101,8 @@ function renderSubExercises(sub){
   container.querySelectorAll('.ver-link').forEach(link=>{
     link.addEventListener('click', (e)=>{
       e.stopPropagation();
-      openAnimModal(link.dataset.ver);
+      if(link.dataset.video) openVideoModal(link.dataset.video);
+      else openAnimModal(link.dataset.ver);
     });
   });
   const addRow = container.querySelector('.add-ex-row');
@@ -2091,13 +2122,12 @@ const exBoard = document.getElementById('exBoard');
 function exOptionRow(subId, exName, isPicked, videoUrl){
   const officialVideo = EXERCISE_VIDEOS[exName];
   const hasPattern = !!EXERCISE_PATTERN[exName];
+  const finalVideo = officialVideo || videoUrl;
   let verHtml = '';
-  if(officialVideo){
-    verHtml = `<a class="ver-link-custom" href="${officialVideo}" target="_blank" rel="noopener">Ver</a>`;
+  if(finalVideo){
+    verHtml = `<div class="ver-link" data-video="${finalVideo}">Ver</div>`;
   } else if(hasPattern){
     verHtml = `<div class="ver-link" data-ver="${exName}">Ver</div>`;
-  } else if(videoUrl){
-    verHtml = `<a class="ver-link-custom" href="${videoUrl}" target="_blank" rel="noopener">Ver</a>`;
   }
   return `
     <div class="ex-option ${isPicked ? 'picked':''}" data-sub="${subId}" data-ex="${exName}">
@@ -2171,7 +2201,8 @@ function renderExercisesView(){
   exBoard.querySelectorAll('.ver-link').forEach(link=>{
     link.addEventListener('click', (e)=>{
       e.stopPropagation();
-      openAnimModal(link.dataset.ver);
+      if(link.dataset.video) openVideoModal(link.dataset.video);
+      else openAnimModal(link.dataset.ver);
     });
   });
   return true;
@@ -2208,6 +2239,43 @@ function closeAnimModal(){
 document.getElementById('modalClose').addEventListener('click', closeAnimModal);
 modalOverlay.addEventListener('click', (e)=>{
   if(e.target === modalOverlay) closeAnimModal();
+});
+
+// ---- Modal de video a pantalla completa — para los "Ver" que tienen un
+// video real (de fábrica verificado o agregado por el cliente), en vez de
+// salir a la app/sitio de YouTube. YouTube se incrusta con rel=0 para que
+// las sugerencias al terminar sean del mismo canal, no de cualquier video;
+// un archivo subido directo (mp4, etc.) se reproduce nativo. Si el link no
+// se puede identificar como ninguno de los dos, se abre aparte como
+// respaldo — no todos los sitios permiten incrustarse.
+const videoOverlay = document.getElementById('videoOverlay');
+const videoFrameWrap = document.getElementById('videoFrameWrap');
+
+function youtubeEmbedUrl(url){
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([\w-]{11})/);
+  if(!m) return null;
+  return `https://www.youtube.com/embed/${m[1]}?rel=0&modestbranding=1&autoplay=1&playsinline=1`;
+}
+
+function openVideoModal(url){
+  const embed = youtubeEmbedUrl(url);
+  if(embed){
+    videoFrameWrap.innerHTML = `<iframe src="${embed}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  } else if(/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)){
+    videoFrameWrap.innerHTML = `<video src="${url}" controls autoplay playsinline></video>`;
+  } else {
+    window.open(url, '_blank', 'noopener');
+    return;
+  }
+  videoOverlay.classList.add('open');
+}
+function closeVideoModal(){
+  videoOverlay.classList.remove('open');
+  videoFrameWrap.innerHTML = '';
+}
+document.getElementById('videoModalClose').addEventListener('click', closeVideoModal);
+videoOverlay.addEventListener('click', (e)=>{
+  if(e.target === videoOverlay) closeVideoModal();
 });
 
 // ---- Modal "Agregar ejercicio" — el cliente suma su propio ejercicio a
@@ -2533,12 +2601,16 @@ function renderExecCard(){
 
       <div class="exec-divider"><span>Alternativas</span></div>
       <div class="ex-card" style="padding:2px 0 4px;border:none;background:transparent;margin-bottom:14px;">
-        ${opts.filter(ex => ex !== item.exName).map(ex => `
+        ${opts.filter(ex => ex !== item.exName).map(ex => {
+          const vid = EXERCISE_VIDEOS[ex];
+          const verAttr = vid ? `data-video="${vid}"` : `data-ver="${ex}"`;
+          return `
           <div class="ex-option" data-ex="${ex}">
             <div class="radio"></div>
             <div class="ex-option-name">${ex}</div>
-            <div class="ver-link" data-ver="${ex}">Ver</div>
-          </div>`).join('')}
+            <div class="ver-link" ${verAttr}>Ver</div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
 
@@ -2691,11 +2763,17 @@ function renderExecCard(){
   execCard.querySelectorAll('.ver-link').forEach(link=>{
     link.addEventListener('click', (e)=>{
       e.stopPropagation();
-      openAnimModal(link.dataset.ver);
+      if(link.dataset.video) openVideoModal(link.dataset.video);
+      else openAnimModal(link.dataset.ver);
     });
   });
 
-  document.getElementById('execSeeLink').addEventListener('click', ()=> openAnimModal(item.exName));
+  document.getElementById('execSeeLink').addEventListener('click', ()=>{
+    const custom = (customExercises[item.subId] || []).find(c => c.nombre === item.exName);
+    const vid = EXERCISE_VIDEOS[item.exName] || (custom ? custom.video_url : null);
+    if(vid) openVideoModal(vid);
+    else openAnimModal(item.exName);
+  });
 }
 
 // ---- Navegación entre pantallas ----
