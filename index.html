@@ -3952,8 +3952,17 @@ function saveScrollPos(){
     }));
   }catch(e){}
 }
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveScrollPos(); });
-window.addEventListener('pagehide', saveScrollPos);
+// v94 — Si cierras o cambias de app con un peso a medio escribir, el campo
+// nunca perdía el foco y el "change" no se disparaba: el peso no se guardaba.
+// Ahora, al ocultarse la app, se cierra el campo (eso lo guarda) y se envía
+// a Supabase lo pendiente.
+function flushPendingEdits(){
+  const a = document.activeElement;
+  if(a && a.classList && a.classList.contains('rt-in')){ try{ a.blur(); }catch(e){} }
+  if(currentUser) persistState(true);
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ saveScrollPos(); flushPendingEdits(); } });
+window.addEventListener('pagehide', ()=>{ saveScrollPos(); flushPendingEdits(); });
 // Se llama después de reconstruir una pantalla al recargar — si la posición
 // guardada era de esa misma pantalla, vuelve exactamente ahí.
 function restoreScrollPos(view){
@@ -4972,7 +4981,7 @@ function buildRows(){
 // Ahora solo se envían las filas que cambiaron desde el último guardado
 // exitoso, y los guardados van en cola (uno a la vez, ver coalesce()).
 let lastSavedRows = new Map(); // work_key -> JSON de la última fila guardada con éxito
-let persistRunning = null, persistAgain = false, persistAllSilent = true;
+let persistRunning = null, persistAgain = false, persistAllSilent = true, persistRetryTimer = null, persistRetrying = false;
 function persistState(silent){
   if(!silent) persistAllSilent = false;
   if(persistRunning){ persistAgain = true; return persistRunning; }
@@ -5000,11 +5009,18 @@ async function persistStateOnce(silent){
     const { error } = await sb.from('progreso').upsert(changed, { onConflict: 'user_id,work_key' });
     if(error) throw error;
     changed.forEach(r => lastSavedRows.set(r.work_key, JSON.stringify(r)));
+    persistRetrying = false;
     if(!silent) showToast('Progreso guardado.');
     else showToast('Guardado ✓');
   }catch(e){
-    // No se marca como guardado — el próximo guardado lo reintenta solo.
+    // No se marca como guardado. v94 — antes solo se reintentaba con el
+    // siguiente cambio (si no tocabas nada más, el peso se perdía); ahora se
+    // reintenta solo a los pocos segundos.
     if(!silent) showToast('No se pudo guardar, inténtalo de nuevo.');
+    else if(!persistRetrying) showToast('Sin conexión — reintentando guardar…');
+    persistRetrying = true;
+    clearTimeout(persistRetryTimer);
+    persistRetryTimer = setTimeout(()=>{ persistRetryTimer = null; persistState(true); }, 5000);
   }
 }
 
