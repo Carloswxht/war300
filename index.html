@@ -322,14 +322,30 @@
   }
   .summary-row-head:active{opacity:.6;}
   .summary-row-title{font-size:14px;font-weight:700;margin:0 0 2px;color:var(--text);}
-  .summary-row-ex{font-size:12.5px;color:var(--text-dim);margin:0;}
-  .summary-row-ex.is-desc{font-style:italic;}
+  .summary-row-desc{font-size:12.5px;color:var(--text-dim);margin:0;font-style:italic;}
+  .summary-row-ex{font-size:12.5px;color:var(--accent, var(--text));margin:2px 0 0;font-weight:600;}
   .summary-row-edit{
     width:15px;height:15px;flex-shrink:0;
     color:var(--text-dim);
     transition:transform .2s ease,color .2s ease;
   }
   .summary-row.open .summary-row-edit{transform:rotate(90deg);color:var(--accent, var(--text));}
+  .drag-handle{
+    width:28px;height:28px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);
+    cursor:grab;
+    touch-action:none;
+    margin-left:-6px;
+  }
+  .drag-handle:active{color:var(--text);}
+  .summary-row.dragging{
+    position:relative;z-index:5;
+    opacity:.92;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+    border-radius:12px;
+    background:var(--panel-2);
+  }
   .summary-row.open{
     background:var(--ink);
     margin:0 -20px 12px;
@@ -340,6 +356,26 @@
   .summary-row.open .exec-item-body{padding:14px 0 20px;background:transparent;}
   .summary-row:last-child{margin-bottom:0;}
   .summary-row strong{font-weight:700;}
+  /* El título (fondo var(--ink), heredado de .summary-row.open) se queda
+     como está. Los 3 ejercicios se pintan en un color distinto — más claro,
+     var(--panel-2) — para que se note que ahí es donde se está operando. */
+  .routine-ex-card{
+    background:var(--panel-2);
+    border-radius:14px;
+    padding:2px 14px;
+  }
+  .routine-ex-card .ex-option.picked{
+    background:color-mix(in srgb, var(--accent, var(--panel)) 10%, transparent);
+    margin:0 -10px;padding:10px;
+    border-radius:10px;
+  }
+  /* Peso/series/reps del ejercicio elegido, pegados justo debajo de ESE
+     ejercicio (no al final de la lista de los 3). */
+  .routine-fields-inline{
+    padding:0 4px 14px 30px;
+    border-bottom:1px solid var(--line);
+  }
+  .routine-fields-inline .exec-fields{margin:0;}
   .sub-exercises:empty{display:none;}
   .sub-exercises{
     padding:2px 2px 14px 32px;
@@ -363,6 +399,8 @@
     transform:translateY(-50%);
   }
   .continue-mini svg{width:16px;height:16px;}
+  .continue-mini.ready{background:#1B7A3D;color:#fff;border-radius:10px;padding:9px 14px;animation:finPulse 1.6s ease-in-out infinite;}
+  @keyframes finPulse{0%,100%{box-shadow:0 0 0 0 rgba(27,122,61,.55);}50%{box-shadow:0 0 0 8px rgba(27,122,61,0);}}
   .continue-mini:active{opacity:.6;}
   .prev-mini{right:auto;left:14px;}
 
@@ -383,7 +421,7 @@
   .exec-done-btn svg{width:19px;height:19px;flex-shrink:0;}
   .exec-done-btn:active{opacity:.75;}
 
-  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-store, #view-onboarding, #view-split-picker, #view-day-order, #view-routine-summary{display:none;}
+  #view-exercises, #view-execution, #view-checklist, #view-stats, #view-stats-daily, #view-stats-period, #view-stats-exercise, #view-store, #view-onboarding, #view-split-picker, #view-day-order, #view-routine-summary, #view-home-routine{display:none;}
 
   #welcomeBack:empty{display:none;}
   .welcome-back{
@@ -472,6 +510,13 @@
   }
   .tc-start-btn svg{width:18px;height:18px;flex-shrink:0;}
   .tc-start-btn:active{opacity:.75;}
+  .tc-start-btn.tc-secondary{background:transparent;color:var(--text);border:1.5px solid var(--line);}
+  .home-choice-label{font-family:'Archivo Black',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin:0 2px 12px;}
+  .home-choice-divider{display:flex;align-items:center;gap:10px;margin:14px 2px;}
+  .home-choice-divider span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);}
+  .home-choice-divider::before,.home-choice-divider::after{content:'';flex:1;height:1px;background:var(--line);}
+  .home-cat-title{font-family:'Archivo Black',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin:22px 2px 8px;}
+  .home-cat-title:first-child{margin-top:4px;}
 
   .store-fab{
     position:fixed;right:18px;bottom:calc(64px + 18px + env(safe-area-inset-bottom));
@@ -843,6 +888,10 @@
     padding:0;outline:none;
     pointer-events:auto;
   }
+  .exec-badge-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin-bottom:14px;
+  }
   .exec-badge{
     display:inline-block;
     font-size:11.5px;font-weight:700;
@@ -850,8 +899,16 @@
     background:var(--accent-dim,var(--panel-2));
     border-radius:8px;
     padding:5px 10px;
-    margin-bottom:14px;
   }
+  .exec-watch-link{
+    display:flex;align-items:center;gap:5px;flex-shrink:0;
+    font-size:11.5px;font-weight:700;
+    color:var(--text-dim);
+    cursor:pointer;
+    padding:5px 2px;
+  }
+  .exec-watch-link:active{opacity:.6;}
+  .exec-watch-link svg{flex-shrink:0;}
   .exec-note{font-size:12.5px;color:var(--text-dim);line-height:1.5;margin:0 0 4px;font-style:italic;}
 
   .ex-progress:empty{display:none;}
@@ -1275,6 +1332,65 @@
   .dropdown-email:empty{display:none;}
   #profileMenu{top:62px;right:18px;min-width:220px;}
   #navMenu{bottom:78px;left:50%;transform:translateX(-50%);}
+
+  /* ---- v77: Tu rutina en tabla (columnas fijas + deslizables) ---- */
+  .rt-body{padding:4px 0 8px;}
+  .rt-group{padding:12px 0 2px;}
+  .rt-muscle{font-family:'Archivo Black',sans-serif;font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin:0 16px 6px;}
+  .rt-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;}
+  .rt-scroll::-webkit-scrollbar{display:none;}
+  .rt-table{border-collapse:separate;border-spacing:0;min-width:100%;}
+  .rt-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);text-align:center;padding:6px 8px;white-space:nowrap;border-bottom:1px solid var(--line);background:var(--panel);}
+  .rt-table td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:middle;text-align:center;background:var(--panel);}
+  .rt-table tbody tr:last-child td{border-bottom:none;}
+  .rt-c1,.rt-c2{position:sticky;z-index:2;text-align:left !important;box-sizing:border-box;vertical-align:top !important;}
+  .rt-c1{left:0;width:112px;min-width:112px;max-width:112px;padding-left:16px !important;}
+  .rt-c2{left:112px;width:118px;min-width:118px;max-width:118px;box-shadow:8px 0 10px -8px rgba(0,0,0,.55);}
+  .rt-table th.rt-c1,.rt-table th.rt-c2{z-index:3;}
+  .rt-swipe{display:block;font-size:9px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--accent);opacity:.8;}
+  .rt-d{min-width:74px;}
+  .rt-sub-name{display:block;font-size:13px;font-weight:700;line-height:1.25;color:var(--text);}
+  .rt-sub-lay{display:block;font-size:11.5px;line-height:1.3;color:var(--text-dim);margin-top:2px;}
+  .rt-opt-tag{display:inline-block;margin-top:6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);border:1px solid var(--line);border-radius:5px;padding:1px 5px;}
+  .rt-ex{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;background:none;border:none;padding:0;margin:0;color:var(--accent);font-family:'Archivo',sans-serif;font-size:12.5px;font-weight:700;line-height:1.3;text-align:left;cursor:pointer;}
+  .rt-ex span{display:block;width:100%;}
+  /* v80 — La flecha va debajo del nombre del ejercicio (apunta hacia abajo;
+     al abrir las alternativas, hacia arriba), así la columna fija es más
+     angosta y se ve más de peso/repeticiones/series. */
+  .rt-ex svg{width:16px;height:16px;flex-shrink:0;transform:rotate(90deg);transition:transform .2s ease;}
+  .rt-ex.open svg{transform:rotate(-90deg);}
+  .rt-ex:active{opacity:.6;}
+  .rt-opt{margin-top:7px;background:none;border:1px solid var(--line);color:var(--text-dim);font-family:'Archivo',sans-serif;font-size:11px;font-weight:700;border-radius:7px;padding:4px 8px;cursor:pointer;}
+  .rt-opt.add{margin-top:0;color:var(--accent);border-color:var(--accent);border-style:dashed;}
+  .rt-in{width:58px;box-sizing:border-box;text-align:center;font-family:'Archivo',sans-serif;font-size:16px;font-weight:800;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 4px;outline:none;-webkit-appearance:none;appearance:none;}
+  .rt-in:focus{border-color:var(--accent);}
+  .rt-in::placeholder{color:var(--text-dim);font-weight:600;font-size:13px;}
+  .rt-in:disabled{opacity:.35;}
+  .rt-unit{display:block;font-size:10px;color:var(--text-dim);margin-top:3px;}
+  .rt-na{color:var(--text-dim);font-weight:700;}
+  .rt-btn{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--line);color:var(--accent);font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;border-radius:8px;padding:7px 10px;white-space:nowrap;cursor:pointer;}
+  .rt-btn:active{opacity:.6;}
+  .rt-btn:disabled{opacity:.3;}
+  .rt-row.off .rt-sub-name{color:var(--text-dim);}
+  .rt-row.open td{border-bottom-color:transparent;}
+  .rt-alt-row td{padding:0 !important;background:var(--ink);text-align:left;border-bottom:1px solid var(--line);}
+  .rt-alt-panel{position:sticky;left:0;box-sizing:border-box;padding:6px 16px 10px;margin:0;background:transparent;border:none;}
+  .rt-check{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;margin-top:9px;background:none;border:1.5px solid var(--line);color:var(--text);font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;border-radius:9px;padding:6px 10px 6px 7px;cursor:pointer;}
+  .rt-check:active{opacity:.6;}
+  .rt-check-box{width:18px;height:18px;box-sizing:border-box;border-radius:5px;border:2px solid var(--text-dim);display:flex;align-items:center;justify-content:center;color:#fff;}
+  .rt-row.done .rt-check{background:#1B7A3D;border-color:#1B7A3D;color:#fff;}
+  .rt-row.done .rt-check-box{border-color:#fff;}
+  .rt-row.done .rt-sub-name{color:var(--text-dim);}
+  .rt-row.done td.rt-d{opacity:.45;}
+  #execCard .day{margin-bottom:0;}
+  .rt-home-alt-panel{position:sticky;left:0;box-sizing:border-box;padding:6px 16px 10px;margin:0;background:transparent;border:none;}
+  .rt-how{display:flex;align-items:center;gap:4px;margin-top:7px;white-space:nowrap;text-align:left;padding:0;background:none;border:none;color:var(--accent);font-family:'Archivo',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .rt-how svg{transition:transform .2s ease;}
+  .rt-how.open svg{transform:rotate(180deg);}
+  .rt-how-panel{font-size:13px;line-height:1.55;color:var(--text-dim);padding:10px 16px 14px;}
+  .rt-core-tag{font-family:'Archivo',sans-serif;font-size:11px;text-transform:none;letter-spacing:0;color:var(--day1);}
+  .rt-alt-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin:6px 0 2px;}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1426,6 +1542,12 @@
 
       <div id="customThemesWrap"></div>
 
+      <p class="settings-section-title" style="margin-top:26px;">Vista previa</p>
+      <div class="dropdown-item" id="viewOnboardingBtn" style="padding:14px 2px;">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 11L12 4L20 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10V19C6 19.5523 6.44772 20 7 20H17C17.5523 20 18 19.5523 18 19V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Ver pantalla de bienvenida
+      </div>
+
       <p class="settings-section-title" style="margin-top:26px;">Cuenta</p>
       <div class="danger-item" id="deleteAccountBtn">
         <p class="di-title">Eliminar cuenta</p>
@@ -1509,7 +1631,7 @@
   </div>
 
   <div id="view-store">
-    <video id="storeVideo" src="tienda-video.mp4" autoplay muted loop playsinline></video>
+    <video id="storeVideo" src="tienda-video.mp4" muted loop playsinline preload="none"></video>
     <button class="store-back" id="storeBackBtn" aria-label="Volver">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Volver
@@ -1564,6 +1686,19 @@
     <div id="execCard"></div>
   </div>
 
+  <div id="view-home-routine">
+    <div class="exec-topbar">
+      <div class="exec-topbar-left">
+        <button class="back-btn" id="homeRoutineBackBtn" aria-label="Volver">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h2>Rutina de casa</h2>
+      </div>
+    </div>
+    <p class="exec-muscles-subtitle">10-15 min reales: cardio y postura son la base diaria. El resto, cuando tengas más tiempo.</p>
+    <div id="homeRoutineCard"></div>
+  </div>
+
   <div id="view-stats">
     <div class="ex-topbar">
       <button class="back-btn" id="statsBackBtn" aria-label="Volver al inicio">
@@ -1580,7 +1715,22 @@
         <p class="so-name">Por semana y mes</p>
         <p class="so-desc">Cuántos días entrenaste esta semana y este mes.</p>
       </div>
+      <div class="stats-option" id="statsExerciseBtn">
+        <p class="so-name">Por ejercicio</p>
+        <p class="so-desc">El progreso de peso, series y repeticiones de cada ejercicio que has hecho.</p>
+      </div>
     </div>
+  </div>
+
+  <div id="view-stats-exercise">
+    <div class="ex-topbar">
+      <button class="back-btn" id="statsExerciseBackBtn" aria-label="Volver">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Por ejercicio</h2>
+    </div>
+    <p class="board-hint">Toca un ejercicio para ver su progreso.</p>
+    <div id="statsExerciseList" class="board"></div>
   </div>
 
   <div id="view-stats-daily">
@@ -1692,109 +1842,143 @@
 const chevronSvg = `<svg class="chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const checkSvg = `<svg width="12" height="9" viewBox="0 0 13 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5L4.5 8.5L12 1" stroke="#0E1013" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-// Orden: músculos y sub-músculos van de mayor a menor peso estético
+// v77 — Catálogo nuevo, basado en anatomía y evidencia científica. Cada
+// sub-músculo tiene: name (nombre anatómico), lay (qué es, en palabras
+// simples), desc (por qué importa) y optional (true = no entra por defecto
+// en la rutina; el cliente lo añade si quiere). Ningún ejercicio se repite
+// entre sub-músculos — cada uno está solo donde más trabaja ese músculo.
+// Orden dentro de cada día: compuestos grandes primero, aislados al final.
 const DAYS = [
   {
     id:'day1', accent:1, num:'01',
     name:'Empuje superior',
-    desc:'Hombro · pecho · tríceps',
+    desc:'Pecho · hombro · tríceps',
     muscles:[
-      { name:'Hombro', subs:[
-        { name:'Lateral', desc:'Un hombro lateral fuerte estabiliza toda la articulación y reduce el riesgo de lesión en cualquier movimiento por encima de la cabeza — clave para levantar, cargar y empujar con seguridad.' },
-        { name:'Posterior', desc:'El deltoides posterior es el que más se descuida y el que más corrige la postura — contrarresta directamente el encorvamiento de pasar horas sentado o con el celular.' },
-        { name:'Anterior', desc:'Ya recibe trabajo indirecto con cada press de pecho — un poco de trabajo directo redondea la fuerza de empuje sin quitarle tiempo al resto.' },
-      ]},
       { name:'Pecho', subs:[
-        { name:'Superior (clavicular)', desc:'La parte alta del pecho es la que más se queda atrás si solo haces press plano — trabajarla pareja mejora la fuerza de empuje en cualquier ángulo, no solo de frente.' },
-        { name:'Medio (esternal)', desc:'Es el motor principal de cualquier movimiento de empuje — press de banca, flexiones, incluso empujar una puerta pesada. Entrenarlo es entrenar fuerza funcional real.' },
+        { name:'Porción clavicular', lay:'pecho de arriba', desc:'La parte alta del pecho — es la que más se queda atrás si solo haces press plano, y la que da el pecho "lleno" visto de frente.' },
+        { name:'Porción esternocostal', lay:'pecho del medio', desc:'La parte más grande del pecho y el motor principal de cualquier empuje.' },
+        { name:'Porción abdominal', lay:'pecho de abajo', desc:'Marca la línea inferior del pecho — el corte que lo separa del abdomen y lo hace verse terminado.' },
+      ]},
+      { name:'Hombro', subs:[
+        { name:'Deltoides lateral', lay:'hombro del costado', desc:'Es el que da la anchura de hombros — el que más cambia la silueta en forma de "V".' },
+        { name:'Deltoides anterior', lay:'hombro de delante', optional:true, desc:'Ya trabaja mucho en cada press de pecho — trabajo directo solo si te sobra tiempo.' },
       ]},
       { name:'Tríceps', subs:[
-        { name:'Cabeza larga', desc:'Es la cabeza más grande del tríceps y la que más aporta a la fuerza de bloqueo — la que usas para terminar cualquier press con control.' },
-        { name:'Cabeza lateral', desc:'Le da estabilidad al codo en la fase final de cualquier empuje — entrenarla reduce la fatiga articular en presses pesados.' },
-        { name:'Cabeza medial / ancóneo', desc:'Estabiliza el codo durante todo el movimiento de extensión — un tríceps parejo protege la articulación mejor que uno desarrollado solo en una cabeza.' },
+        { name:'Cabeza larga', lay:'atrás, hacia la axila', desc:'La cabeza más grande del tríceps — crece más con el brazo por encima de la cabeza, donde se estira.' },
+        { name:'Cabezas lateral y medial', lay:'atrás, hacia fuera y junto al codo', desc:'Trabajan juntas en los empujes con el brazo pegado al cuerpo — dan la forma de "herradura" del tríceps.' },
+      ]},
+      { name:'Serrato', subs:[
+        { name:'Serrato anterior', lay:'costillas, debajo de la axila', optional:true, desc:'Estabiliza el omóplato y da el detalle "dentado" sobre las costillas.' },
       ]},
     ]
   },
   {
     id:'day2', accent:2, num:'02',
     name:'Pierna y core',
-    desc:'Abdomen · cuádriceps · glúteo · gemelo',
+    desc:'Cuádriceps · glúteo · isquios · gemelo · abdomen',
     muscles:[
-      { name:'Abdomen', subs:[
-        { name:'Recto superior', desc:'Un core fuerte estabiliza la columna en cada levantamiento — desde una sentadilla hasta cargar las bolsas del mercado. Es la base que sostiene todo lo demás.' },
-        { name:'Oblicuos (línea en V)', desc:'Controlan la rotación del torso — fundamentales para cualquier movimiento donde giras o cambias de dirección, y protegen la espalda baja de lesiones por torsión.' },
-        { name:'Recto inferior', desc:'Estabiliza la pelvis y protege la zona lumbar durante movimientos de piernas — el que más tarda en notarse, pero el que más aporta a la salud de la espalda baja.' },
-      ]},
       { name:'Cuádriceps', subs:[
-        { name:'Vasto lateral ("la gota")', desc:'Estabiliza la rodilla en el último tramo de extensión — clave para proteger la articulación en sentadillas profundas y actividades de impacto.' },
-        { name:'General', desc:'Es de los grupos musculares más grandes del cuerpo — entrenarlo eleva el gasto calórico total y es la base de fuerza para casi cualquier movimiento de piernas.' },
+        { name:'Vastos', lay:'muslo, frente y lados (incluye la "gota")', desc:'Tres de las cuatro cabezas del cuádriceps — crecen sobre todo con sentadillas y prensa profundas.' },
+        { name:'Recto femoral', lay:'muslo, centro', desc:'La única cabeza del cuádriceps que cruza la cadera — las sentadillas casi no la hacen crecer; necesita extensiones de rodilla.' },
       ]},
       { name:'Glúteo', subs:[
-        { name:'General', desc:'El glúteo es el motor de la cadera — estabiliza la zona lumbar, mejora la potencia al correr o saltar, y es de los músculos más subestimados para prevenir dolor de espalda.' },
-      ]},
-      { name:'Gemelo', subs:[
-        { name:'General', desc:'Estabiliza el tobillo en cada paso, salto o cambio de dirección — un gemelo fuerte reduce directamente el riesgo de esguinces.' },
+        { name:'Glúteo mayor', lay:'el glúteo grande', desc:'El músculo más grande del cuerpo — motor de la cadera y clave para la espalda baja.' },
+        { name:'Glúteo medio', lay:'costado de la cadera', desc:'Da la forma lateral de la cadera y estabiliza la rodilla y la pelvis en cada paso.' },
       ]},
       { name:'Isquiotibiales', subs:[
-        { name:'General', desc:'Equilibran al cuádriceps y protegen la rodilla — un desbalance entre ambos es una de las causas más comunes de lesión en la parte baja de la pierna.' },
+        { name:'Función de cadera', lay:'atrás del muslo — bisagra', desc:'Trabaja los isquios estirados desde la cadera (peso muerto rumano) — una de las dos funciones que hay que entrenar.' },
+        { name:'Función de rodilla', lay:'atrás del muslo — curl', desc:'Trabaja los isquios doblando la rodilla (curl femoral) — la otra función; las dos juntas dan el desarrollo completo.' },
+      ]},
+      { name:'Aductores', subs:[
+        { name:'Aductor mayor', lay:'interior del muslo', optional:true, desc:'Uno de los músculos más grandes de la pierna — rellena el muslo visto de frente.' },
+      ]},
+      { name:'Pantorrilla', subs:[
+        { name:'Gastrocnemio', lay:'gemelo, el de arriba', desc:'La parte visible del gemelo — se trabaja con la rodilla estirada.' },
+        { name:'Sóleo', lay:'gemelo, el de abajo', optional:true, desc:'Está debajo del gastrocnemio y da grosor a la pantorrilla — se trabaja con la rodilla doblada.' },
+      ]},
+      { name:'Espalda baja', subs:[
+        { name:'Erectores espinales', lay:'zona lumbar', optional:true, desc:'Sostienen la columna — muy recomendables si trabajas agachado o cargando peso.' },
+      ]},
+      { name:'Abdomen', subs:[
+        { name:'Recto abdominal', lay:'los "cuadritos"', desc:'Es un solo músculo de arriba abajo — se marca con crunches con peso y elevaciones de piernas.' },
+        { name:'Oblicuos', lay:'costados de la cintura', desc:'Controlan la rotación del torso y protegen la espalda baja.' },
       ]},
     ]
   },
   {
     id:'day3', accent:3, num:'03',
     name:'Tirón',
-    desc:'Espalda · bíceps · antebrazo',
+    desc:'Espalda · hombro posterior · bíceps · antebrazo',
     muscles:[
       { name:'Espalda', subs:[
-        { name:'Dorsal ancho (la "V")', desc:'El músculo más grande de la espalda — de él depende gran parte de tu fuerza de tirón (dominadas, remo) y una postura erguida y sostenida en el tiempo.' },
-        { name:'Trapecio', desc:'Estabiliza la escápula en cada movimiento de tirón — un trapecio fuerte protege el hombro y mejora directamente tu fuerza de agarre en cargas pesadas.' },
-        { name:'Espalda media / romboides', desc:'Junta los omóplatos y es el principal corrector de la postura encorvada hacia adelante — el músculo más subestimado para verse y sentirse erguido.' },
+        { name:'Dorsal ancho', lay:'los costados (la "V")', desc:'El músculo más grande de la espalda — es el que da la forma en "V".' },
+        { name:'Trapecio medio y romboides', lay:'entre los omóplatos', desc:'Juntan los omóplatos — dan grosor a la espalda y corrigen la postura encorvada.' },
+        { name:'Trapecio superior', lay:'entre cuello y hombro', optional:true, desc:'Sube los hombros hacia las orejas — da volumen a la zona del cuello.' },
+        { name:'Trapecio inferior', lay:'debajo de los omóplatos', optional:true, desc:'Baja y fija el omóplato — protege el hombro en press y jalones.' },
+      ]},
+      { name:'Hombro', subs:[
+        { name:'Deltoides posterior', lay:'hombro de atrás', desc:'El más olvidado del hombro — completa el hombro "redondo" y corrige la postura.' },
       ]},
       { name:'Bíceps', subs:[
-        { name:'Cabeza larga (exterior)', desc:'Contribuye directamente a la fuerza de flexión del codo — clave en cualquier movimiento de tirón, desde una dominada hasta levantar una caja.' },
-        { name:'Braquial', desc:'Está debajo del bíceps y empuja todo el brazo hacia afuera — uno de los músculos más subestimados para la fuerza real de agarre y flexión.' },
-        { name:'Cabeza corta (interior)', desc:'Complementa a la cabeza larga en cada flexión de codo — entrenarlas parejas da una fuerza de tirón más completa y balanceada.' },
+        { name:'Cabeza larga', lay:'bíceps, lado de fuera', desc:'Da el "pico" del bíceps — crece más con el brazo por detrás del cuerpo, donde se estira.' },
+        { name:'Cabeza corta', lay:'bíceps, lado de dentro', desc:'Da el grosor interior del bíceps — trabaja más con el brazo por delante del cuerpo.' },
+        { name:'Braquial', lay:'debajo del bíceps', desc:'Está debajo del bíceps y lo empuja hacia fuera — hace que el brazo se vea más grueso.' },
       ]},
       { name:'Antebrazo', subs:[
-        { name:'General', desc:'Un antebrazo fuerte sostiene todo lo que haces con las manos — desde el agarre en cualquier ejercicio pesado hasta actividades del día a día. Casi nadie lo entrena directo, así que es de los que más rápido mejoran.' },
-        { name:'Muñeca (flexores)', desc:'La base del agarre — un flexor de muñeca fuerte te permite sostener más peso en todo lo demás, sin que la muñeca sea el punto débil.' },
-        { name:'Muñeca (extensores)', desc:'Equilibra al flexor y protege la muñeca de sobrecarga — clave para prevenir el codo de tenista y mantener la articulación sana con el tiempo.' },
+        { name:'Braquiorradial', lay:'antebrazo, junto al codo', desc:'El músculo más visible del antebrazo — se trabaja con agarre invertido o de martillo.' },
+        { name:'Flexores', lay:'antebrazo, lado de la palma', optional:true, desc:'La base del agarre — sostener más peso en todo lo demás.' },
+        { name:'Extensores', lay:'antebrazo, lado del dorso', optional:true, desc:'Equilibran a los flexores y protegen la muñeca y el codo.' },
+      ]},
+      { name:'Cuello', subs:[
+        { name:'Flexores del cuello', lay:'cuello, por delante', optional:true, desc:'Dan grosor al cuello visto de frente. Empieza muy ligero.' },
+        { name:'Extensores del cuello', lay:'nuca', optional:true, desc:'Dan grosor a la nuca y sostienen la cabeza. Empieza muy ligero.' },
       ]},
     ]
   }
 ];
 
-// Ejercicios por sub-músculo, de más a menos efectivo/recomendado
+// Ejercicios por sub-músculo, de más a menos eficaz (clave: "Músculo__Sub").
+// Donde un ejercicio es el mismo que ya existía, se mantiene su nombre de
+// antes — así se conservan su video, el peso guardado y su gráfico.
 const EXERCISES = {
-  'Lateral': ['Elevaciones laterales con mancuerna', 'Elevaciones laterales en polea', 'Elevaciones laterales en máquina'],
-  'Posterior': ['Pájaro con mancuerna', 'Face pull en polea', 'Posterior en máquina (peck-deck invertido)'],
-  'Anterior': ['Press militar con mancuerna', 'Elevación frontal con disco', 'Press militar con barra'],
-  'Superior (clavicular)': ['Press inclinado con mancuerna', 'Press inclinado en máquina', 'Aperturas en polea baja a alta'],
-  'Medio (esternal)': ['Press banca con barra', 'Press banca con mancuerna', 'Aperturas con mancuerna en plano'],
-  'Cabeza larga': ['Extensión sobre la cabeza con mancuerna', 'Press francés', 'Extensión en polea alta con cuerda'],
-  'Cabeza lateral': ['Extensión en polea con cuerda', 'Extensión con barra recta en polea', 'Patada de tríceps'],
-  'Cabeza medial / ancóneo': ['Extensión en polea, agarre invertido', 'Fondos en banco', 'Press cerrado con barra'],
-  'Recto superior': ['Crunch en máquina', 'Crunch en el suelo', 'Crunch en polea alta'],
-  'Oblicuos (línea en V)': ['Plancha lateral con rotación', 'Giro ruso con peso', 'Elevación de cadera lateral'],
-  'Recto inferior': ['Elevación de piernas colgado', 'Elevación de rodillas en paralelas', 'Elevación de piernas acostado'],
-  'Vasto lateral ("la gota")': ['Extensión de cuádriceps, pie rotado afuera', 'Sentadilla búlgara', 'Prensa con pies bajos y juntos'],
-  'General__Cuádriceps': ['Sentadilla libre con barra', 'Prensa de piernas', 'Sentadilla hack'],
-  'General__Glúteo': ['Hip thrust con barra', 'Sentadilla búlgara', 'Patada de glúteo en polea'],
-  'General__Gemelo': ['Elevación de talones de pie', 'Elevación de talones sentado', 'Elevación de talones en prensa'],
-  'General__Isquiotibiales': ['Peso muerto rumano', 'Curl femoral acostado', 'Curl femoral sentado'],
-  'Dorsal ancho (la "V")': ['Dominadas agarre ancho', 'Jalón al pecho agarre ancho', 'Remo con mancuerna a un brazo'],
-  'Trapecio': ['Encogimientos con barra', 'Encogimientos con mancuerna', 'Face pull'],
-  'Espalda media / romboides': ['Remo con barra', 'Remo en máquina', 'Remo con cable sentado'],
-  'Cabeza larga (exterior)': ['Curl inclinado con mancuerna', 'Curl con barra recta', 'Curl en polea baja'],
-  'Braquial': ['Curl martillo', 'Curl concentrado', 'Curl cruzado en polea'],
-  'Cabeza corta (interior)': ['Curl con barra EZ, agarre cerrado', 'Curl Scott (predicador)', 'Curl concentrado, agarre supinado'],
-  'General__Antebrazo': ["Farmer's walk", 'Dead hang (colgarse de la barra)', 'Curl de muñeca con barra'],
-  'Muñeca (flexores)': ['Curl de muñeca con barra', 'Curl de muñeca con mancuerna', 'Curl de muñeca en máquina'],
-  'Muñeca (extensores)': ['Curl de muñeca inverso con barra', 'Curl de muñeca inverso con mancuerna', 'Extensión de muñeca con banda'],
+  'Pecho__Porción clavicular': ['Press inclinado con mancuerna', 'Press inclinado en máquina', 'Press inclinado con barra', 'Press inclinado en máquina Smith', 'Aperturas en polea baja a alta', 'Aperturas inclinadas con mancuerna'],
+  'Pecho__Porción esternocostal': ['Press banca con barra', 'Press banca con mancuerna', 'Press plano en máquina', 'Aperturas en máquina (peck-deck)', 'Cruce de poleas a la altura del pecho', 'Aperturas con mancuerna en plano', 'Flexiones'],
+  'Pecho__Porción abdominal': ['Fondos en paralelas inclinado hacia delante', 'Cruce de poleas de arriba a abajo', 'Press declinado con mancuerna', 'Press declinado con barra', 'Press declinado en máquina', 'Fondos en máquina asistida'],
+  'Hombro__Deltoides lateral': ['Elevaciones laterales con mancuerna', 'Elevaciones laterales en polea', 'Elevaciones laterales en máquina', 'Elevación lateral con pecho apoyado en banco inclinado', 'Elevación lateral tumbado de lado', 'Remo al mentón con agarre ancho'],
+  'Hombro__Deltoides anterior': ['Press militar con mancuerna', 'Press militar con barra', 'Press de hombro en máquina', 'Press Arnold', 'Elevación frontal en polea', 'Elevación frontal con mancuerna'],
+  'Tríceps__Cabeza larga': ['Extensión sobre la cabeza con mancuerna', 'Extensión en polea alta con cuerda', 'Press francés', 'Extensión sobre la cabeza en máquina', 'Press francés con mancuerna'],
+  'Tríceps__Cabezas lateral y medial': ['Extensión en polea con cuerda', 'Extensión con barra recta en polea', 'Press cerrado con barra', 'Extensión en polea, agarre invertido', 'Fondos en paralelas con el torso recto', 'Extensión en polea a un brazo', 'Press JM', 'Patada de tríceps en polea'],
+  'Serrato__Serrato anterior': ['Empuje de serrato en polea', 'Flexiones plus', 'Press landmine', 'Deslizamientos en pared con banda'],
+
+  'Cuádriceps__Vastos': ['Sentadilla libre con barra', 'Sentadilla hack', 'Prensa de piernas', 'Sentadilla frontal'],
+  'Cuádriceps__Recto femoral': ['Extensión de cuádriceps con respaldo reclinado', 'Extensión de cuádriceps', 'Sentadilla sissy'],
+  'Glúteo__Glúteo mayor': ['Hip thrust con barra', 'Sentadilla búlgara', 'Prensa con los pies altos', 'Zancada caminando', 'Patada de glúteo en polea', 'Hiperextensión enfocada en glúteo'],
+  'Glúteo__Glúteo medio': ['Abducción de cadera en máquina', 'Abducción de cadera en polea', 'Abducción tumbado de lado con peso', 'Caminata lateral con banda', 'Peso muerto a una pierna'],
+  'Isquiotibiales__Función de cadera': ['Peso muerto rumano', 'Buenos días con barra'],
+  'Isquiotibiales__Función de rodilla': ['Curl femoral sentado', 'Curl femoral acostado', 'Curl nórdico'],
+  'Aductores__Aductor mayor': ['Máquina de aductores', 'Sentadilla sumo', 'Aducción en polea', 'Plancha Copenhague'],
+  'Pantorrilla__Gastrocnemio': ['Elevación de talones de pie', 'Elevación de talones en prensa', 'Elevación de talones en máquina Smith', 'Elevación de talones a una pierna con mancuerna', 'Elevación de talones tipo burro'],
+  'Pantorrilla__Sóleo': ['Elevación de talones sentado', 'Elevación de talones sentado con mancuerna', 'Elevación de talones en prensa con rodillas flexionadas'],
+  'Espalda baja__Erectores espinales': ['Peso muerto convencional', 'Hiperextensión a 45°', 'Hiperextensión inversa', 'Extensión lumbar en máquina'],
+  'Abdomen__Recto abdominal': ['Crunch en máquina', 'Crunch en polea alta', 'Elevación de piernas colgado', 'Rueda abdominal', 'Crunch en banco declinado', 'Elevación de rodillas en paralelas', 'Crunch en el suelo'],
+  'Abdomen__Oblicuos': ['Rotación en polea (leñador)', 'Flexión lateral con mancuerna o en polea', 'Press Pallof', 'Elevación de piernas colgado con giro', 'Plancha lateral', 'Giro ruso con peso'],
+
+  'Espalda__Dorsal ancho': ['Jalón al pecho agarre ancho', 'Jalón al pecho, agarre neutro', 'Dominadas agarre ancho', 'Remo a un brazo en polea, codo pegado', 'Remo con barra, agarre supino', 'Remo con mancuerna a un brazo', 'Jalón a un brazo', 'Jalón en polea con brazos rectos'],
+  'Espalda__Trapecio medio y romboides': ['Remo con barra', 'Remo en máquina', 'Remo con cable sentado', 'Remo en T con pecho apoyado', 'Remo con mancuerna con pecho apoyado', 'Remo en máquina a un brazo', 'Remo invertido'],
+  'Espalda__Trapecio superior': ['Encogimientos con barra', 'Encogimientos con mancuerna', 'Encogimientos en máquina', 'Encogimientos en polea'],
+  'Espalda__Trapecio inferior': ['Elevación en Y con mancuerna', 'Elevación en Y en polea', 'Face pull en polea', 'Dominadas escapulares'],
+  'Hombro__Deltoides posterior': ['Pájaro con mancuerna', 'Pájaro en polea (cruce invertido)', 'Posterior en máquina (peck-deck invertido)', 'Pájaro con pecho apoyado en banco inclinado'],
+  'Bíceps__Cabeza larga': ['Curl inclinado con mancuerna', 'Curl Bayesian en polea', 'Curl con barra recta', 'Curl con mancuerna de pie', 'Curl en polea baja'],
+  'Bíceps__Cabeza corta': ['Curl Scott (predicador)', 'Curl concentrado', 'Curl Scott en máquina', 'Curl con barra EZ, agarre ancho', 'Curl en polea alta', 'Curl araña'],
+  'Bíceps__Braquial': ['Curl martillo', 'Curl martillo con cuerda en polea', 'Curl Scott martillo', 'Curl cruzado hacia el pecho'],
+  'Antebrazo__Braquiorradial': ['Curl en polea, agarre invertido', 'Curl invertido con barra recta', 'Curl invertido con barra EZ', 'Curl Zottman'],
+  'Antebrazo__Flexores': ['Curl de muñeca con barra', 'Curl de muñeca con mancuerna', 'Curl de muñeca por detrás de la espalda', 'Curl de muñeca en polea', "Farmer's walk"],
+  'Antebrazo__Extensores': ['Curl de muñeca inverso con barra', 'Curl de muñeca inverso con mancuerna', 'Extensión de muñeca en polea', 'Rodillo de muñeca'],
+  'Cuello__Flexores del cuello': ['Flexión de cuello con disco, boca arriba', 'Flexión de cuello en máquina', 'Flexión de cuello con banda'],
+  'Cuello__Extensores del cuello': ['Extensión de cuello con arnés', 'Extensión de cuello en máquina', 'Extensión de cuello con disco, boca abajo', 'Extensión de cuello con banda'],
 };
 function exercisesFor(muscleName, subName){
-  if(subName === 'General') return EXERCISES['General__' + muscleName] || [];
-  return EXERCISES[subName] || [];
+  return EXERCISES[muscleName + '__' + subName] || [];
 }
 
 // Patrones de movimiento reutilizables para la animación (silueta esquemática)
@@ -1813,35 +1997,76 @@ const PATTERNS = {
   'calf-raise':      { label:'Elevación de talón', vars:{'--heel-to':'-14px'} },
   'core':            { label:'Movimiento de core', vars:{'--t-to':'-30deg'} },
   'carry':           { label:'Carga / sostén estático', vars:{'--sway-to':'5px'} },
+  'hang':            { label:'Colgado / sostén estático', vars:{'--sway-to':'5px'} },
+  'hinge':           { label:'Bisagra de cadera', vars:{'--t-to':'40deg'} },
+  'hip-abduction':   { label:'Abducción / aducción de cadera', vars:{'--lu-to':'-30deg'} },
+  'leg-isolation':   { label:'Extensión / flexión de rodilla', vars:{'--ll-to':'70deg'} },
+  'wrist':           { label:'Movimiento de muñeca', vars:{'--f-to':'-25deg'} },
+  'neck':            { label:'Movimiento de cuello', vars:{'--t-to':'-8deg'} },
+  'hold':            { label:'Sostén isométrico', vars:{'--sway-to':'3px'} },
 };
 
-// Cada nombre de ejercicio -> su patrón de movimiento
+// Cada nombre de ejercicio -> su patrón de movimiento (define la animación
+// de respaldo y la guía de series/repeticiones).
 const EXERCISE_PATTERN = {
-  'Elevaciones laterales con mancuerna':'raise-side','Elevaciones laterales en polea':'raise-side','Elevaciones laterales en máquina':'raise-side',
-  'Pájaro con mancuerna':'raise-side','Face pull en polea':'pull','Posterior en máquina (peck-deck invertido)':'raise-side',
-  'Press militar con mancuerna':'press-overhead','Elevación frontal con disco':'front-raise','Press militar con barra':'press-overhead',
-  'Press inclinado con mancuerna':'press-horizontal','Press inclinado en máquina':'press-horizontal','Aperturas en polea baja a alta':'fly',
-  'Press banca con barra':'press-horizontal','Press banca con mancuerna':'press-horizontal','Aperturas con mancuerna en plano':'fly',
-  'Extensión sobre la cabeza con mancuerna':'triceps-overhead','Press francés':'triceps-overhead','Extensión en polea alta con cuerda':'triceps-overhead',
-  'Extensión en polea con cuerda':'pushdown','Extensión con barra recta en polea':'pushdown','Patada de tríceps':'pushdown',
-  'Extensión en polea, agarre invertido':'pushdown','Fondos en banco':'press-horizontal','Press cerrado con barra':'press-horizontal',
-  'Crunch en máquina':'core','Crunch en el suelo':'core','Crunch en polea alta':'core',
-  'Plancha lateral con rotación':'core','Giro ruso con peso':'core','Elevación de cadera lateral':'core',
-  'Elevación de piernas colgado':'core','Elevación de rodillas en paralelas':'core','Elevación de piernas acostado':'core',
-  'Extensión de cuádriceps, pie rotado afuera':'leg-bend','Sentadilla búlgara':'leg-bend','Prensa con pies bajos y juntos':'leg-bend',
-  'Sentadilla libre con barra':'leg-bend','Prensa de piernas':'leg-bend','Sentadilla hack':'leg-bend',
-  'Hip thrust con barra':'leg-bend','Patada de glúteo en polea':'leg-bend',
-  'Elevación de talones de pie':'calf-raise','Elevación de talones sentado':'calf-raise','Elevación de talones en prensa':'calf-raise',
-  'Peso muerto rumano':'leg-bend','Curl femoral acostado':'leg-bend','Curl femoral sentado':'leg-bend',
-  'Dominadas agarre ancho':'pull','Jalón al pecho agarre ancho':'pull','Remo con mancuerna a un brazo':'pull',
-  'Encogimientos con barra':'shrug','Encogimientos con mancuerna':'shrug','Face pull':'pull',
-  'Remo con barra':'pull','Remo en máquina':'pull','Remo con cable sentado':'pull',
-  'Curl inclinado con mancuerna':'curl','Curl con barra recta':'curl','Curl en polea baja':'curl',
-  'Curl martillo':'curl','Curl concentrado':'curl','Curl cruzado en polea':'curl',
-  'Curl con barra EZ, agarre cerrado':'curl','Curl Scott (predicador)':'curl','Curl concentrado, agarre supinado':'curl',
-  "Farmer's walk":'carry','Dead hang (colgarse de la barra)':'carry','Curl de muñeca con barra':'curl',
-  'Curl de muñeca con mancuerna':'curl','Curl de muñeca en máquina':'curl',
-  'Curl de muñeca inverso con barra':'curl','Curl de muñeca inverso con mancuerna':'curl','Extensión de muñeca con banda':'curl',
+  // Pecho
+  'Press inclinado con mancuerna':'press-horizontal','Press inclinado en máquina':'press-horizontal','Press inclinado con barra':'press-horizontal',
+  'Press inclinado en máquina Smith':'press-horizontal','Aperturas en polea baja a alta':'fly','Aperturas inclinadas con mancuerna':'fly',
+  'Press banca con barra':'press-horizontal','Press banca con mancuerna':'press-horizontal','Press plano en máquina':'press-horizontal',
+  'Aperturas en máquina (peck-deck)':'fly','Cruce de poleas a la altura del pecho':'fly','Aperturas con mancuerna en plano':'fly','Flexiones':'press-horizontal',
+  'Fondos en paralelas inclinado hacia delante':'press-horizontal','Cruce de poleas de arriba a abajo':'fly','Press declinado con mancuerna':'press-horizontal',
+  'Press declinado con barra':'press-horizontal','Press declinado en máquina':'press-horizontal','Fondos en máquina asistida':'press-horizontal',
+  // Hombro
+  'Elevaciones laterales en polea':'raise-side','Elevaciones laterales en máquina':'raise-side','Elevaciones laterales con mancuerna':'raise-side',
+  'Elevación lateral con pecho apoyado en banco inclinado':'raise-side','Elevación lateral tumbado de lado':'raise-side','Remo al mentón con agarre ancho':'shrug',
+  'Press militar con mancuerna':'press-overhead','Press militar con barra':'press-overhead','Press de hombro en máquina':'press-overhead','Press Arnold':'press-overhead',
+  'Elevación frontal en polea':'front-raise','Elevación frontal con mancuerna':'front-raise',
+  'Pájaro en polea (cruce invertido)':'raise-side','Posterior en máquina (peck-deck invertido)':'raise-side','Pájaro con pecho apoyado en banco inclinado':'raise-side','Pájaro con mancuerna':'raise-side',
+  // Tríceps
+  'Extensión en polea alta con cuerda':'triceps-overhead','Extensión sobre la cabeza con mancuerna':'triceps-overhead','Press francés':'triceps-overhead',
+  'Extensión sobre la cabeza en máquina':'triceps-overhead','Press francés con mancuerna':'triceps-overhead',
+  'Extensión con barra recta en polea':'pushdown','Extensión en polea con cuerda':'pushdown','Press cerrado con barra':'press-horizontal',
+  'Extensión en polea, agarre invertido':'pushdown','Fondos en paralelas con el torso recto':'press-horizontal','Extensión en polea a un brazo':'pushdown',
+  'Press JM':'press-horizontal','Patada de tríceps en polea':'pushdown',
+  // Serrato
+  'Empuje de serrato en polea':'press-horizontal','Flexiones plus':'press-horizontal','Press landmine':'press-overhead','Deslizamientos en pared con banda':'press-overhead',
+  // Pierna
+  'Sentadilla hack':'leg-bend','Sentadilla libre con barra':'leg-bend','Prensa de piernas':'leg-bend','Sentadilla frontal':'leg-bend',
+  'Extensión de cuádriceps con respaldo reclinado':'leg-isolation','Extensión de cuádriceps':'leg-isolation','Sentadilla sissy':'leg-isolation',
+  'Sentadilla búlgara':'leg-bend','Hip thrust con barra':'leg-bend','Prensa con los pies altos':'leg-bend','Zancada caminando':'leg-bend',
+  'Patada de glúteo en polea':'leg-isolation','Hiperextensión enfocada en glúteo':'hinge',
+  'Abducción de cadera en máquina':'hip-abduction','Abducción de cadera en polea':'hip-abduction','Abducción tumbado de lado con peso':'hip-abduction',
+  'Caminata lateral con banda':'hip-abduction','Peso muerto a una pierna':'hinge',
+  'Peso muerto rumano':'hinge','Buenos días con barra':'hinge',
+  'Curl femoral sentado':'leg-isolation','Curl femoral acostado':'leg-isolation','Curl nórdico':'leg-isolation',
+  'Máquina de aductores':'hip-abduction','Sentadilla sumo':'leg-bend','Aducción en polea':'hip-abduction','Plancha Copenhague':'hold',
+  'Elevación de talones de pie':'calf-raise','Elevación de talones en prensa':'calf-raise','Elevación de talones en máquina Smith':'calf-raise',
+  'Elevación de talones a una pierna con mancuerna':'calf-raise','Elevación de talones tipo burro':'calf-raise',
+  'Elevación de talones sentado':'calf-raise','Elevación de talones sentado con mancuerna':'calf-raise','Elevación de talones en prensa con rodillas flexionadas':'calf-raise',
+  'Peso muerto convencional':'hinge','Hiperextensión a 45°':'hinge','Hiperextensión inversa':'hinge','Extensión lumbar en máquina':'hinge',
+  // Abdomen
+  'Crunch en polea alta':'core','Crunch en máquina':'core','Elevación de piernas colgado':'core','Rueda abdominal':'core',
+  'Crunch en banco declinado':'core','Elevación de rodillas en paralelas':'core','Crunch en el suelo':'core',
+  'Rotación en polea (leñador)':'core','Flexión lateral con mancuerna o en polea':'core','Press Pallof':'core',
+  'Elevación de piernas colgado con giro':'core','Plancha lateral':'hold','Giro ruso con peso':'core',
+  // Espalda
+  'Jalón al pecho agarre ancho':'pull','Jalón al pecho, agarre neutro':'pull','Dominadas agarre ancho':'pull','Remo a un brazo en polea, codo pegado':'pull','Remo con barra, agarre supino':'pull',
+  'Remo con mancuerna a un brazo':'pull','Jalón a un brazo':'pull','Jalón en polea con brazos rectos':'pull',
+  'Remo en máquina':'pull','Remo con cable sentado':'pull','Remo con barra':'pull','Remo en T con pecho apoyado':'pull',
+  'Remo con mancuerna con pecho apoyado':'pull','Remo en máquina a un brazo':'pull','Remo invertido':'pull',
+  'Encogimientos con mancuerna':'shrug','Encogimientos con barra':'shrug','Encogimientos en máquina':'shrug','Encogimientos en polea':'shrug',
+  'Elevación en Y con mancuerna':'raise-side','Elevación en Y en polea':'raise-side','Face pull en polea':'pull','Dominadas escapulares':'pull',
+  // Bíceps y antebrazo
+  'Curl inclinado con mancuerna':'curl','Curl Bayesian en polea':'curl','Curl con barra recta':'curl','Curl con mancuerna de pie':'curl','Curl en polea baja':'curl',
+  'Curl Scott (predicador)':'curl','Curl concentrado':'curl','Curl Scott en máquina':'curl','Curl con barra EZ, agarre ancho':'curl','Curl en polea alta':'curl','Curl araña':'curl',
+  'Curl martillo':'curl','Curl martillo con cuerda en polea':'curl','Curl Scott martillo':'curl','Curl cruzado hacia el pecho':'curl',
+  'Curl invertido con barra recta':'curl','Curl invertido con barra EZ':'curl','Curl en polea, agarre invertido':'curl','Curl Zottman':'curl',
+  'Curl de muñeca con barra':'wrist','Curl de muñeca con mancuerna':'wrist','Curl de muñeca por detrás de la espalda':'wrist','Curl de muñeca en polea':'wrist',
+  "Farmer's walk":'carry',
+  'Curl de muñeca inverso con barra':'wrist','Curl de muñeca inverso con mancuerna':'wrist','Extensión de muñeca en polea':'wrist','Rodillo de muñeca':'wrist',
+  // Cuello
+  'Flexión de cuello con disco, boca arriba':'neck','Flexión de cuello en máquina':'neck','Flexión de cuello con banda':'neck',
+  'Extensión de cuello con arnés':'neck','Extensión de cuello en máquina':'neck','Extensión de cuello con disco, boca abajo':'neck','Extensión de cuello con banda':'neck',
 };
 
 // Guía de peso/reps por patrón de movimiento
@@ -1859,22 +2084,218 @@ const REP_GUIDE = {
   'leg-bend':{reps:'6-10', series:'4', peso:40, step:5, type:'Peso pesado, controlado', note:'Controla bien la bajada — es la parte que más construye.'},
   'calf-raise':{reps:'15-20', series:'3', peso:30, step:5, type:'Peso moderado, controlado', note:'Pausa arriba un segundo antes de bajar.'},
   'core':{reps:'15-20', series:'3', peso:0, step:1, type:'Peso corporal / moderado', note:'Prioriza la contracción controlada sobre la velocidad.'},
-  'carry':{reps:'30-45 seg', series:'3', peso:20, step:2.5, type:'Peso pesado, controlado', note:'Postura firme y erguida durante todo el tiempo.'},
+  'carry':{reps:'30-45 seg', series:'3', peso:20, step:2.5, type:'Peso pesado, controlado', repsLabel:'Tiempo (seg)', note:'Postura firme y erguida durante todo el tiempo.'},
+  'hang':{reps:'20-40 seg', series:'3', peso:0, step:1, type:'Peso corporal', repsLabel:'Tiempo (seg)', noPeso:true, note:'Cuelga con los brazos extendidos y los hombros activos (no del todo relajados), sin balancear el cuerpo. Aguanta el máximo tiempo posible con buena técnica.'},
+  'hinge':{reps:'6-10', series:'3', peso:40, step:5, type:'Peso pesado, controlado', note:'Espalda neutra todo el tiempo — la cadera va hacia atrás, la zona lumbar no se redondea.'},
+  'hip-abduction':{reps:'12-20', series:'3', peso:20, step:2.5, type:'Peso moderado, controlado', note:'Lento y sin impulso; aguanta un segundo en la posición de máxima apertura o cierre.'},
+  'leg-isolation':{reps:'10-15', series:'3', peso:30, step:2.5, type:'Peso moderado, controlado', note:'Recorrido completo y bajada controlada, sin rebotar.'},
+  'wrist':{reps:'15-20', series:'3', peso:10, step:1, type:'Peso ligero-moderado', note:'Solo se mueve la muñeca; el antebrazo queda apoyado y quieto.'},
+  'neck':{reps:'15-20', series:'2', peso:5, step:1, type:'Peso ligero, muy controlado', note:'Empieza muy ligero y sube poco a poco. Movimiento lento, sin tirones.'},
+  'hold':{reps:'20-40 seg', series:'3', peso:0, step:1, type:'Peso corporal', repsLabel:'Tiempo (seg)', noPeso:true, note:'Mantén la posición firme y respira con normalidad, sin aguantar el aire.'},
 };
 
-// Asignar ids únicos para el checklist y guardar referencia al músculo/día padre
-let uid = 0;
+// Asignar ids únicos para el checklist y guardar referencia al músculo/día padre.
+// Antes el id era solo un contador ('chk0', 'chk1'...) según la posición en
+// DAYS — funcionaba mientras el catálogo no cambiara, pero en cuanto se
+// insertaba un sub-músculo nuevo en medio de la lista (como Trapecio medio/
+// inferior), TODOS los ids de lo que venía después se corrían un lugar. El
+// peso/ejercicio ya guardado de un cliente (atado a ese id, no al nombre)
+// terminaba apareciendo en el sub-músculo equivocado — por eso "Curl
+// martillo" (un ejercicio de bíceps) apareció en Trapecio. Ahora el id se
+// arma con el nombre del día + músculo + sub-músculo, así que no depende de
+// la posición: agregar o reordenar sub-músculos en el futuro nunca más
+// desordena lo que los clientes ya tenían guardado.
+function slugId(str){
+  return str.normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
 const SUB_INDEX = {};
 DAYS.forEach(day=>{
   day.muscles.forEach(m=>{
     m.subs.forEach(s=>{
-      s.id = 'chk' + (uid++);
+      s.id = 'chk_' + slugId(day.name) + '_' + slugId(m.name) + '_' + slugId(s.name);
       s.muscleName = m.name;
       s.dayName = day.name;
       SUB_INDEX[s.id] = s;
     });
   });
 });
+
+// ---- Rutina de casa: postura, cara/cuello, movilidad, equilibrio, agarre
+// y respiración — para los días que no se va al gimnasio. Aparte de la
+// rutina de gym (no reemplaza días, no rota, no tiene peso/series como el
+// gym): es una lista fija que se marca "Hecho" ítem por ítem. ----
+const HOME_CATEGORIES = [
+  { name:'Cardio (zona 2)', items:[
+    { name:'Caminata rápida', target:'10-15 min', desc:'El pilar que más rinde para longevidad, por evidencia científica — ritmo donde puedas hablar pero no cantar. Es la base de esta rutina: hazlo el mayor número de días posible.' },
+    { name:'Subir y bajar escaleras', target:'8-10 min', desc:'Mismo efecto que caminar rápido, más intenso por minuto — ideal si no tienes espacio para caminar en casa.' },
+    { name:'Cuerda de saltar a ritmo suave', target:'8-10 min', desc:'Alternativa de bajo impacto si tienes cuerda — mantén ritmo conversacional, no de sprint, y aterriza suave sobre la punta del pie.' },
+    { name:'Bicicleta (estática o normal) a ritmo suave', target:'10-15 min', desc:'Cuida las rodillas sin impacto en el suelo — perfecta si el clima o el estado del piso no ayudan a caminar.' },
+    { name:'Boxeo de sombra suave', target:'15-20 min seguidos', desc:'Cardio de boxeo en zona 2: muévete sin parar — juego de pies, esquivas, agacharte en U y golpes sueltos SIN fuerza — a un ritmo en el que podrías mantener una conversación. Si te ahogas, baja el ritmo: eso ya no es zona 2. Úsalo cuando domines los pasos 1 a 4 de Defensa personal.' },
+  ]},
+  { name:'Postura', items:[
+    { name:'Gato-camello', target:'10 repeticiones lentas', desc:'Moviliza toda la columna y libera la tensión de estar sentado o agachado mucho tiempo — el mejor arranque para cualquier rutina de casa.' },
+    { name:'Dead hang (colgarse de una barra)', target:'3 series de 20-30 seg', desc:'Descomprime la columna y fortalece hombros y agarre a la vez — pocos ejercicios dan tanto en tan poco tiempo.' },
+    { name:'Ángeles de pared', target:'12 repeticiones', desc:'Reeduca los hombros para que dejen de irse hacia adelante — clave si pasas horas frente a una pantalla o agachado instalando suelo.' },
+    { name:'Estiramiento de pecho en marco de puerta', target:'30 seg por lado', desc:'Abre el pecho y contrarresta la postura encorvada hacia adelante.' },
+    { name:'Retracción escapular con banda', target:'15 repeticiones', desc:'La pieza que le falta al estiramiento de pecho: ese solo abre, esto además fortalece los músculos entre los omóplatos que fijan la postura erguida.' },
+    { name:'Estiramiento de flexor de cadera (arrodillado)', target:'30 seg por lado', desc:'Libera la cadera acortada por pasar horas sentado o de rodillas trabajando — evita que la pelvis se vuelque hacia adelante y arquee la zona lumbar.' },
+    { name:'Superman', target:'3 series de 10-12 repeticiones', desc:'Fortalece los erectores espinales (los músculos a los lados de la columna baja) — la pieza que le faltaba a esta lista: no estira ni moviliza, sino que le da resistencia real a la espalda baja, la principal defensa contra el dolor lumbar.' },
+    { name:'Puente de glúteo', target:'3 series de 12-15 repeticiones', desc:'El glúteo débil deja que la pelvis se vuelque hacia adelante y exagere el arco lumbar — esto lo fortalece directo, complementando al estiramiento de flexor de cadera (que libera el lado opuesto del mismo problema).' },
+  ]},
+  { name:'Cara y cuello', items:[
+    { name:'Retracción de mentón (chin tucks)', target:'12 repeticiones', desc:'Corrige la posición de "cuello adelantado" y alivia la tensión que sube hasta la nuca.' },
+    { name:'Mewing (lengua en el paladar)', target:'Mantener 60 seg', desc:'Postura de lengua que tonifica la mandíbula y ayuda a respirar por la nariz en vez de la boca.' },
+    { name:'Rotación y estiramiento de cuello', target:'8 repeticiones por lado', desc:'Libera la rigidez del cuello acumulada durante el día — rápido y se siente de inmediato.' },
+  ]},
+  { name:'Movilidad articular', items:[
+    { name:'Movilidad de cadera 90/90', target:'8 repeticiones por lado', desc:'La cadera es la articulación que más se atrofia por estar sentado — esto le devuelve rango de movimiento.' },
+    { name:'Círculos de tobillo + elevación de talón', target:'15 repeticiones', desc:'Tobillos móviles y fuertes previenen lesiones en cualquier actividad, desde caminar hasta el gym.' },
+    { name:'Rotación de hombro con banda', target:'12 repeticiones', desc:'Mantiene el hombro sano y con rango completo, sobre todo si en el gym empujas y jalas pesado.' },
+    { name:'Sentadilla profunda sostenida', target:'Mantener 60 seg', desc:'La posición en cuclillas profunda es una de las más saludables para cadera y rodilla — y la mayoría la perdió.' },
+  ]},
+  { name:'Equilibrio y propiocepción', items:[
+    { name:'Un pie con ojos cerrados', target:'30 seg por lado', desc:'El equilibrio se entrena o se pierde con los años — esto lo mantiene afilado desde ya.' },
+    { name:'Caminata talón-punta en línea recta', target:'20 pasos', desc:'Mejora la coordinación fina de piernas y core — simple, pero muy efectivo.' },
+    { name:'Sentadilla búlgara sin apoyo', target:'10 repeticiones por lado', desc:'Fuerza unilateral y equilibrio en el mismo movimiento — transfiere directo a la vida diaria.' },
+  ]},
+  { name:'Fuerza de agarre', items:[
+    { name:'Dead hang con peso corporal', target:'30-45 seg', desc:'La fuerza de agarre es uno de los mejores predictores de longevidad que existen.' },
+    { name:'Farmer\'s walk con lo que tengas en casa', target:'40 pasos', desc:'Carga algo pesado en cada mano y camina — fortalece agarre, postura y core de una vez.' },
+    { name:'Apretar pelota antiestrés o grip trainer', target:'20 repeticiones por mano', desc:'Trabajo directo de agarre que puedes hacer viendo TV, sin pensarlo.' },
+  ]},
+  { name:'Respiración y sistema nervioso', items:[
+    { name:'Respiración 4-7-8', target:'5 minutos', desc:'Inhala 4, sostén 7, exhala 8 — la técnica de respiración más estudiada para bajar el estrés y la frecuencia cardíaca en minutos.' },
+    { name:'Estiramiento diafragmático', target:'Mantener 60 seg', desc:'Libera el diafragma para respirar más profundo y con menos esfuerzo durante el día.' },
+  ]},
+  // v86 — Boxeo como progresión de 6 pasos, todo sin saco (sombra frente
+  // al espejo). Cada paso se apoya en el anterior.
+  { name:'Defensa personal', items:[
+    { name:'1. Guardia y postura', target:'3 asaltos de 2 min frente al espejo', desc:'Paso 1 de 7 — la base de todo. Pies al ancho de los hombros, el pie del lado débil delante, rodillas un poco flexionadas y talón de atrás levantado. Manos a la altura de las mejillas, codos pegados a las costillas y mentón abajo. Mantén la guardia y corrígela en el espejo.' },
+    { name:'2. Juego de pies', target:'3 asaltos de 2 min', desc:'Paso 2 de 7. Para avanzar, mueve primero el pie de delante; para retroceder, el de atrás; igual hacia los lados. Los pies nunca se cruzan ni se juntan, y después de cada paso vuelves a la guardia.' },
+    { name:'3. Golpes', target:'3 asaltos de 2 min de sombra', desc:'Paso 3 de 7. Todos los golpes, del más básico al más avanzado — practícalos de uno en uno, en este orden:<br>1. Jab (1) — recto con la mano de delante<br>2. Directo o cross (2) — recto con la mano de atrás<br>3. Gancho de delante (3)<br>4. Gancho de atrás (4)<br>5. Uppercut de delante (5)<br>6. Uppercut de atrás (6)<br>7. Doble jab<br>8. Jab al cuerpo<br>9. Directo al cuerpo<br>10. Gancho al cuerpo (hígado o costado)<br>11. Jab con paso (power jab)<br>12. Gancho largo o swing<br>13. Contragolpe (counter)<br>14. Overhand<br>15. Golpe tras esquiva<br>16. Golpe con giro (pivot)<br>17. Gancho de revés (check hook)' },
+    { name:'4. Defensa básica: bloquear, esquivar y salir', target:'3 asaltos de 2 min', desc:'Paso 4 de 7. Imagina los golpes del rival: bloquea con los guantes y los antebrazos, esquiva el jab moviendo la cabeza ligeramente hacia un lado (slip) y sal de la distancia con un paso atrás, sin perder la guardia.' },
+    { name:'5. Primeras combinaciones', target:'3 asaltos de 2 min de sombra', desc:'Paso 5 de 7. Encadena jab–jab, jab–directo (el "1-2") y 1-2 y salir moviéndote. Prioriza la técnica sobre la velocidad: cada golpe limpio y la guardia siempre arriba.' },
+    { name:'6. Gancho, uppercut y defensa avanzada', target:'3 asaltos de 2 min de sombra', desc:'Paso 6 de 7 — solo cuando los anteriores te salgan solos. Gancho: golpe curvo con el codo a unos 90°, girando todo el cuerpo. Uppercut: golpe hacia arriba, empujando desde las piernas. Añade el rolling: agacharte en forma de U bajo un golpe imaginario.' },
+    { name:'7. Asaltos de cardio de boxeo (intenso)', target:'6 asaltos de 2 min, 1 min de descanso', desc:'Paso 7 de 7 — la versión fuerte, sin saco: en cada asalto encadena combinaciones, esquivas, agacharte y juego de pies a buen ritmo, y descansa 1 minuto entre asaltos. Es entrenamiento por intervalos, no zona 2: máximo 1-2 días por semana.' },
+  ]},
+];
+const HOME_LIST = [];
+HOME_CATEGORIES.forEach(cat=>{
+  cat.items.forEach(it=>{
+    it.id = 'home_' + slugId(cat.name) + '_' + slugId(it.name);
+    it.catName = cat.name;
+    HOME_LIST.push(it);
+  });
+});
+
+// Un video por ejercicio de la rutina de casa, elegido siempre de fuentes
+// médicas o de fisioterapeutas/entrenadores reconocidos (Ask Doctor Jo,
+// MedBridge, guías de fisioterapia, o el propio creador de la técnica en
+// el caso de mewing y 4-7-8) — para que la forma mostrada sea segura, no
+// solo la primera que aparece en la búsqueda.
+const HOME_VIDEOS = {
+  'Cuerda de saltar a ritmo suave': 'https://www.youtube.com/watch?v=s-8tbwbEZ68',
+  'Retracción escapular con banda': 'https://www.youtube.com/watch?v=E7-he23SnK4',
+  'Estiramiento de flexor de cadera (arrodillado)': 'https://www.youtube.com/watch?v=KT0HlPGCl6k',
+  'Gato-camello': 'https://www.youtube.com/watch?v=1Y0YjXS9sKI',
+  'Dead hang (colgarse de una barra)': 'https://www.youtube.com/watch?v=2vspW4N4BMs',
+  'Ángeles de pared': 'https://www.youtube.com/watch?v=cvx06snMQ3A',
+  'Superman': 'https://www.youtube.com/watch?v=PKQlXa3qdJo',
+  'Puente de glúteo': 'https://www.youtube.com/watch?v=ytvP0oUDKYw',
+  'Estiramiento de pecho en marco de puerta': 'https://www.youtube.com/watch?v=M850sCj9LHQ',
+  'Retracción de mentón (chin tucks)': 'https://www.youtube.com/watch?v=gIBoxQ6AlS0',
+  'Mewing (lengua en el paladar)': 'https://www.youtube.com/watch?v=lc0EB7f4SxY',
+  'Rotación y estiramiento de cuello': 'https://www.youtube.com/watch?v=ZgeO87_VFog',
+  'Movilidad de cadera 90/90': 'https://www.youtube.com/watch?v=VYvMMw8z3rE',
+  'Círculos de tobillo + elevación de talón': 'https://www.youtube.com/watch?v=ATc7ShZ40kk',
+  'Rotación de hombro con banda': 'https://www.youtube.com/watch?v=_UvmPNGtlPM',
+  'Sentadilla profunda sostenida': 'https://www.youtube.com/watch?v=0wzrgyAurT8',
+  'Un pie con ojos cerrados': 'https://www.youtube.com/watch?v=4HtOeds_vyw',
+  'Caminata talón-punta en línea recta': 'https://www.youtube.com/watch?v=eTmdkPOahH4',
+  'Sentadilla búlgara sin apoyo': 'https://www.youtube.com/watch?v=VPhhE6bBzZE',
+  'Dead hang con peso corporal': 'https://www.youtube.com/watch?v=2vspW4N4BMs',
+  'Farmer\'s walk con lo que tengas en casa': 'https://www.youtube.com/watch?v=E94UNm8fD-4',
+  'Apretar pelota antiestrés o grip trainer': 'https://www.youtube.com/watch?v=uF93rqPrYI4',
+  'Respiración 4-7-8': 'https://www.youtube.com/watch?v=UYcqVZmzv0c',
+  'Estiramiento diafragmático': 'https://www.youtube.com/watch?v=bmYGGPIBiM4',
+  // Boxeo: Tony Jeffries, medallista olímpico (bronce Pekín 2008) y entrenador.
+  '1. Guardia y postura': 'https://www.youtube.com/watch?v=g3Wl2XJMKzc',
+  '2. Juego de pies': 'https://www.youtube.com/watch?v=v0y86288Wt0',
+  '3. Golpes': 'https://www.youtube.com/watch?v=vyTaKpylOcU',
+  '4. Defensa básica: bloquear, esquivar y salir': 'https://www.youtube.com/watch?v=ReD58z0jFJM',
+  '5. Primeras combinaciones': 'https://www.youtube.com/watch?v=9oN2RCx5peY',
+  '6. Gancho, uppercut y defensa avanzada': 'https://www.youtube.com/watch?v=UFVDcNDnpoU',
+  '7. Asaltos de cardio de boxeo (intenso)': 'https://www.youtube.com/watch?v=aHScq60oTlM',
+  'Boxeo de sombra suave': 'https://www.youtube.com/watch?v=i12A6G_LiJo',
+};
+
+// Cardio y Postura son los dos "fijos" de la rutina de casa — se
+// configuran en "Tu rutina", igual que el gym: Cardio es una elección
+// entre alternativas (como los 3 ejercicios de un sub-músculo, aquí solo
+// se hace UNO por día), Postura es una lista de 6 independientes entre sí
+// (se incluyen todos por defecto, se puede destildar el que de verdad no
+// se pueda hacer). El resto de categorías quedan como extra, sin
+// configurar — se hacen enteras o no, cuando sobre tiempo.
+function homeCardioItems(){
+  return HOME_CATEGORIES.find(c => c.name === 'Cardio (zona 2)').items;
+}
+function homePosturaItems(){
+  return HOME_CATEGORIES.find(c => c.name === 'Postura').items;
+}
+let homeCardioChoice = null; // id del item de Cardio elegido en "Tu rutina"
+let homePosturaIncluded = null; // Set de ids de Postura incluidos — null = todavía sin decidir
+function ensureHomePosturaIncluded(){
+  if(homePosturaIncluded) return;
+  homePosturaIncluded = new Set(homePosturaItems().map(i => i.id));
+}
+
+// Las 5 categorías restantes (Cara y cuello, Movilidad, Equilibrio, Agarre,
+// Respiración) ahora también se ven y se pueden destildar desde "Tu
+// rutina" — igual que Postura, cada una es una lista de independientes,
+// todos incluidos por defecto. Un solo objeto para las 5, para no repetir
+// la misma lógica de Postura cinco veces.
+const HOME_EXTRA_CATEGORY_NAMES = ['Cara y cuello', 'Movilidad articular', 'Equilibrio y propiocepción', 'Fuerza de agarre', 'Respiración y sistema nervioso', 'Defensa personal'];
+const HOME_EXTRA_INTRO = {
+  'Cara y cuello': 'Corrige la postura de cuello adelantado y tonifica la musculatura facial — nada de esto lo trabaja el gym.',
+  'Movilidad articular': 'Mantiene cadera, tobillo y hombro con rango completo — perder ese rango, no la fuerza, es la principal causa de lesión al envejecer.',
+  'Equilibrio y propiocepción': 'El equilibrio se pierde con la edad más rápido que la fuerza — esto lo mantiene entrenado desde ya.',
+  'Fuerza de agarre': 'Uno de los mejores predictores de longevidad que existen, y el gym casi no lo trabaja de forma directa.',
+  'Respiración y sistema nervioso': 'Baja el estrés y la frecuencia cardíaca en minutos — buen cierre después de cualquier entreno.',
+};
+let homeExtraIncluded = null; // { nombreCategoría: Set(ids) } — null = todavía sin decidir
+function ensureHomeExtraIncluded(){
+  if(homeExtraIncluded) return;
+  homeExtraIncluded = {};
+  HOME_EXTRA_CATEGORY_NAMES.forEach(name=>{
+    const cat = HOME_CATEGORIES.find(c => c.name === name);
+    homeExtraIncluded[name] = new Set(cat.items.map(i => i.id));
+  });
+}
+// Devuelve el Set de "incluidos" que corresponda, sea Postura (su propio
+// campo, ya persistido desde antes) o cualquiera de las 5 extra.
+function homeToggleSet(catName){
+  if(catName === 'Postura'){ ensureHomePosturaIncluded(); return homePosturaIncluded; }
+  ensureHomeExtraIncluded();
+  return homeExtraIncluded[catName];
+}
+
+async function persistHomeSetup(){
+  if(!currentUser) return;
+  ensureHomePosturaIncluded();
+  ensureHomeExtraIncluded();
+  const extraObj = {};
+  HOME_EXTRA_CATEGORY_NAMES.forEach(name => { extraObj[name] = [...homeExtraIncluded[name]]; });
+  try{
+    await sb.from('progreso').upsert([
+      { user_id: currentUser.id, work_key: '__home_cardio_choice__', series: homeCardioChoice || '' },
+      { user_id: currentUser.id, work_key: '__home_postura_included__', reps: JSON.stringify([...homePosturaIncluded]) },
+      { user_id: currentUser.id, work_key: '__home_extra_included__', reps: JSON.stringify(extraObj) },
+    ], { onConflict: 'user_id,work_key' });
+  }catch(e){
+    // si falla, la elección igual queda visible en pantalla, solo no persiste
+  }
+}
 
 // Fecha en formato AAAA-MM-DD según la hora LOCAL del usuario — a
 // diferencia de .toISOString(), que siempre da la fecha en UTC y puede
@@ -2033,6 +2454,7 @@ const EXERCISE_VIDEOS = {
   'Curl de muñeca inverso con barra': 'https://www.youtube.com/watch?v=sDXAYbrWO1Q',
   'Curl de muñeca inverso con mancuerna': 'https://www.youtube.com/watch?v=krZ6pWGZ8xo',
   'Curl en polea baja': 'https://www.youtube.com/watch?v=qtc_d6lr_yo',
+  'Curl en polea, agarre invertido': 'https://www.youtube.com/watch?v=jmD09GYwxdw',
   'Curl inclinado con mancuerna': 'https://www.youtube.com/watch?v=ysEVZPMY0Y8',
   'Curl martillo': 'https://www.youtube.com/watch?v=RHdacbwKbTo',
   'Dead hang (colgarse de la barra)': 'https://www.youtube.com/watch?v=-31tCeBwPV0',
@@ -2047,6 +2469,7 @@ const EXERCISE_VIDEOS = {
   'Elevación de talones de pie': 'https://www.youtube.com/watch?v=_R3TOH-vnF8',
   'Elevación de talones en prensa': 'https://www.youtube.com/watch?v=_lQQSKnFD_s',
   'Elevación de talones sentado': 'https://www.youtube.com/watch?v=Hq7ZnmkuZWM',
+  'Elevación en Y con mancuerna': 'https://www.youtube.com/watch?v=lXp16YozXgk',
   'Elevación frontal con disco': 'https://www.youtube.com/watch?v=PFUZQCfg-bg',
   'Encogimientos con barra': 'https://www.youtube.com/watch?v=qXlzUyVKNKY',
   'Encogimientos con mancuerna': 'https://www.youtube.com/watch?v=xeJjTRIYOIM',
@@ -2064,6 +2487,8 @@ const EXERCISE_VIDEOS = {
   'Giro ruso con peso': 'https://www.youtube.com/watch?v=wuc66c3DOQo',
   'Hip thrust con barra': 'https://www.youtube.com/watch?v=b1nsBZm9sU8',
   'Jalón al pecho agarre ancho': 'https://www.youtube.com/watch?v=c6SZm7jawwE',
+  'Jalón al pecho, agarre neutro': 'https://www.youtube.com/watch?v=Su1dfZDi0sk',
+  'Jalón en polea con brazos rectos': 'https://www.youtube.com/watch?v=3Kzb3QkH_lE',
   'Patada de glúteo en polea': 'https://www.youtube.com/watch?v=vHY4JUtKiFc',
   'Patada de tríceps': 'https://www.youtube.com/watch?v=UmpeJmxvNh4',
   'Plancha lateral con rotación': 'https://www.youtube.com/watch?v=QTaq9gdFBEU',
@@ -2071,18 +2496,21 @@ const EXERCISE_VIDEOS = {
   'Prensa con pies bajos y juntos': 'https://www.youtube.com/watch?v=fmHMK1vQbQY',
   'Prensa de piernas': 'https://www.youtube.com/watch?v=bNsrqXUIJqc',
   'Press banca con barra': 'https://www.youtube.com/watch?v=uRyOpJkStSI',
-  'Press banca con mancuerna': 'https://www.youtube.com/watch?v=jrDDz7x1Dpo',
+  'Press plano en máquina': 'https://www.youtube.com/watch?v=rY0B8UFdne0',
+  'Empuje de serrato en polea': 'https://www.youtube.com/watch?v=Vn7ur-0O4CY', // v93 — Ask Doctor Jo (fisioterapeuta): mismo movimiento de empuje, con banda
+  'Press banca con mancuerna': 'https://www.facebook.com/share/r/1CMqJkoHEV/', // v91 — video elegido por Carlos (antes YouTube jrDDz7x1Dpo)
   'Press cerrado con barra': 'https://www.youtube.com/watch?v=1cINMxL3A74',
   'Press francés': 'https://www.youtube.com/watch?v=_n194KVOxLU',
   'Press inclinado con mancuerna': 'https://www.youtube.com/watch?v=sL6xN9EVDfE',
   'Press inclinado en máquina': 'https://www.youtube.com/watch?v=O1hoMf5FtDQ',
   'Press militar con barra': 'https://www.youtube.com/watch?v=OHxSwnkSxB8',
-  'Press militar con mancuerna': 'https://www.youtube.com/watch?v=WeCyPErNDxo',
+  'Press militar con mancuerna': 'https://www.facebook.com/share/r/18LAgGAJCu/', // v90 — video elegido por Carlos (antes YouTube WeCyPErNDxo)
   'Pájaro con mancuerna': 'https://www.youtube.com/watch?v=29AM-enz1tA',
   'Remo con barra': 'https://www.youtube.com/watch?v=zL8LKi7vQV8',
   'Remo con cable sentado': 'https://www.youtube.com/watch?v=6QiMaJaQLUI',
-  'Remo con mancuerna a un brazo': 'https://www.youtube.com/watch?v=ryhxLQUn-cQ',
+  'Remo con mancuerna a un brazo': 'https://www.facebook.com/share/r/19KcTQNaxN/',
   'Remo en máquina': 'https://www.youtube.com/watch?v=VWyhefUKTp4',
+  'Remo en máquina a un brazo': 'https://www.youtube.com/watch?v=nhcmIbjUdlE',
   'Sentadilla búlgara': 'https://www.youtube.com/watch?v=RSRNqe9f7XM',
   'Sentadilla hack': 'https://www.youtube.com/watch?v=i4dMU7554Tk',
   'Sentadilla libre con barra': 'https://www.youtube.com/watch?v=dsCuiccYNGs',
@@ -2097,6 +2525,66 @@ let customExercises = {};
 // o destildados a propósito). Sirve para no volver a marcar por defecto
 // algo que el usuario ya destildó antes.
 const decidedSubIds = new Set();
+
+// v78 — Versión del orden del catálogo ya aplicada a este usuario. En la
+// v78 cambió el nº 1 de varios sub-músculos: si el cliente seguía con el nº 1
+// que puso la v77 por defecto (no eligió otro), pasa al nº 1 nuevo — o al
+// ejercicio que ya usaba antes de la v77, si está en la lista. Se hace una
+// sola vez por usuario (queda guardado en Supabase).
+const CATALOG_VERSION = 78;
+let catalogVersionSeen = 0;
+const V77_DEFAULT_FIRST = {
+  'Hombro__Deltoides lateral':'Elevaciones laterales en polea',
+  'Hombro__Deltoides posterior':'Pájaro en polea (cruce invertido)',
+  'Tríceps__Cabeza larga':'Extensión en polea alta con cuerda',
+  'Tríceps__Cabezas lateral y medial':'Extensión con barra recta en polea',
+  'Cuádriceps__Vastos':'Sentadilla hack',
+  'Glúteo__Glúteo mayor':'Sentadilla búlgara',
+  'Abdomen__Recto abdominal':'Crunch en polea alta',
+  'Espalda__Dorsal ancho':'Jalón al pecho, agarre neutro',
+  'Espalda__Trapecio medio y romboides':'Remo en máquina',
+  'Espalda__Trapecio superior':'Encogimientos con mancuerna',
+  'Antebrazo__Braquiorradial':'Curl invertido con barra recta',
+};
+async function persistCatalogVersion(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__catalog_version__', reps: String(CATALOG_VERSION) },
+      { onConflict: 'user_id,work_key' }
+    );
+  }catch(e){}
+}
+
+// v77 — Sub-músculos opcionales (cuello, serrato, aductor...) que el cliente
+// decidió añadir a su rutina. Los no opcionales entran siempre.
+let optionalIncluded = new Set();
+// v79 — Cualquier sub-músculo se puede quitar de la rutina (no solo los que
+// venían como opcionales). Los que entran por defecto y el cliente quitó
+// quedan acá; los opcionales que añadió, en optionalIncluded.
+let excludedSubs = new Set();
+function isSubIncluded(sub){
+  return sub.optional ? optionalIncluded.has(sub.id) : !excludedSubs.has(sub.id);
+}
+function setSubIncluded(sub, on){
+  if(sub.optional){ if(on) optionalIncluded.add(sub.id); else optionalIncluded.delete(sub.id); }
+  else { if(on) excludedSubs.delete(sub.id); else excludedSubs.add(sub.id); }
+  if(on) checkedSubIds.add(sub.id); else checkedSubIds.delete(sub.id);
+  persistOptionalSubs();
+}
+async function persistOptionalSubs(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__optional_subs__', reps: JSON.stringify([...optionalIncluded]) },
+      { onConflict: 'user_id,work_key' }
+    );
+    await sb.from('progreso').upsert(
+      { user_id: currentUser.id, work_key: '__excluded_subs__', reps: JSON.stringify([...excludedSubs]) },
+      { onConflict: 'user_id,work_key' }
+    );
+  }catch(e){ /* si falla, la elección sigue visible en pantalla */ }
+}
 
 // En qué paso del checklist va el usuario: día (slot 1/2/3), músculo
 // dentro de ese día (índice) y sub-músculo dentro de ese músculo (índice).
@@ -2127,7 +2615,7 @@ function renderChecklistBoard(){
   // ejercicios ya desplegados — si el usuario no lo quiere, lo destilda él
   // mismo y esa decisión queda respetada de ahí en adelante.
   if(!decidedSubIds.has(sub.id)){
-    checkedSubIds.add(sub.id);
+    if(isSubIncluded(sub)) checkedSubIds.add(sub.id);
     decidedSubIds.add(sub.id);
   }
   board.innerHTML = dayCard(dayObj, checklistStep.day, muscle, sub);
@@ -2140,6 +2628,7 @@ function renderChecklistBoard(){
       subEl.classList.toggle('on');
       decidedSubIds.add(s.id);
       if(nowOn) checkedSubIds.add(s.id); else checkedSubIds.delete(s.id);
+      setSubIncluded(s, nowOn);
       persistState(true);
       persistDecidedSubs();
       renderSubExercises(s);
@@ -2547,7 +3036,13 @@ function youtubeEmbedUrl(url){
   return `https://www.youtube.com/embed/${m[1]}?rel=0&modestbranding=1&autoplay=1&playsinline=1`;
 }
 
+// Se guarda el scroll de justo antes de abrir el video — entrar/salir de
+// pantalla completa a veces hace que el navegador salte solo al tope de la
+// página al cerrar; con esto se vuelve exactamente a donde estaba, en vez
+// de aparecer arriba de todo.
+let scrollBeforeVideoModal = 0;
 function openVideoModal(url){
+  scrollBeforeVideoModal = window.scrollY || document.documentElement.scrollTop || 0;
   const embed = youtubeEmbedUrl(url);
   if(embed){
     videoFrameWrap.innerHTML = `<iframe src="${embed}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe><a class="embed-backup-link" href="${url}" target="_blank" rel="noopener">¿No carga? Ver en YouTube ↗</a>`;
@@ -2579,6 +3074,7 @@ function closeVideoModal(){
   }
   videoOverlay.classList.remove('open');
   videoFrameWrap.innerHTML = '';
+  requestAnimationFrame(()=> window.scrollTo(0, scrollBeforeVideoModal));
 }
 document.getElementById('videoModalClose').addEventListener('click', closeVideoModal);
 videoOverlay.addEventListener('click', (e)=>{
@@ -2660,6 +3156,7 @@ async function saveCustomExercise(){
     chosenExercise[subId] = nombre;
     closeAddExerciseModal();
     if(sub) renderSubExercises(sub);
+    if(currentView === 'routine-summary') renderRoutineSummary();
     await persistState(true);
   }catch(e){
     showToast('No se pudo guardar el ejercicio.');
@@ -2710,6 +3207,61 @@ let lastSessionSummary = null;
 // al saltar a otro desde "Cambiar ejercicio") — para el chulito de "ya lo
 // hiciste" en la lista de ejercicios del día.
 let doneThisSession = new Set();
+// Respaldo DURABLE (en Supabase, no solo en este celular) de qué se marcó
+// "Hecho" en el día que está en curso ahora mismo — { accent, ids }. Sin
+// esto, salir de la ejecución hacia CUALQUIER otra pantalla (Inicio, el
+// menú, "atrás") borraba el respaldo local (EXEC_NAV_KEY, pensado solo
+// para sobrevivir a que Android mate la pestaña) y, al volver a tocar
+// "Iniciar", doneThisSession arrancaba vacío — perdiendo ejercicios ya
+// marcados aunque la sesión de ese día ni se hubiera terminado.
+let donePersisted = null;
+
+// v75 — Guardados "en cola": si ya hay un guardado en camino a Supabase y
+// llegan más toques, no se lanzan 5 peticiones en paralelo (que con mala
+// señal en el gym se amontonaban y hacían que la app pareciera colgada) —
+// se espera a que termine el que va y se hace UNO más con el estado final.
+function coalesce(fn){
+  let running = null, again = false;
+  const wrapped = function(){
+    if(running){ again = true; return running; }
+    running = (async ()=>{
+      try{ do{ again = false; await fn(); } while(again); }
+      finally{ running = null; }
+    })();
+    return running;
+  };
+  wrapped.idle = ()=> running || Promise.resolve();
+  return wrapped;
+}
+
+const persistDoneToday = coalesce(persistDoneTodayOnce);
+async function persistDoneTodayOnce(){
+  if(!currentUser || execList.length === 0) return;
+  const accent = execList[0].accent;
+  // v83 — Se actualiza también la copia en memoria. Antes solo se guardaba
+  // en Supabase: si salías del entreno a Inicio y volvías a "Iniciar en el
+  // gym" sin recargar la página, se recuperaban solo los "Hecho" marcados
+  // antes de la última recarga y el resto aparecía sin marcar.
+  donePersisted = { accent, ids: [...doneThisSession] };
+  try{
+    await sb.from('progreso').upsert([{
+      user_id: currentUser.id,
+      work_key: '__done_today__',
+      reps: JSON.stringify({ accent, ids: [...doneThisSession] }),
+    }], { onConflict: 'user_id,work_key' });
+  }catch(e){ /* si falla, sigue disponible el respaldo local (EXEC_NAV_KEY) */ }
+}
+async function clearPersistedDoneToday(){
+  donePersisted = null;
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert([{
+      user_id: currentUser.id,
+      work_key: '__done_today__',
+      reps: JSON.stringify({ accent: null, ids: [] }),
+    }], { onConflict: 'user_id,work_key' });
+  }catch(e){}
+}
 
 // ---- Recuperar la posición del entreno si Android mata la pestaña en segundo
 // plano (al cambiar de app) y Chrome la recarga desde cero al volver. Sin esto,
@@ -2735,6 +3287,43 @@ function saveExecNav(){
 function clearExecNav(){
   try{ localStorage.removeItem(EXEC_NAV_KEY); }catch(e){}
 }
+
+// Mismo problema, pero para "Tu rutina": al tocar "Ver" en una alternativa
+// de ejercicio, el celular sale a YouTube y Android puede matar la pestaña
+// en segundo plano — al volver, Chrome recarga la app desde cero y, sin
+// esto, la fila que estaba abierta se perdía: la pantalla reaparecía
+// colapsada y arriba de todo, en vez de en el ejercicio donde se dio "Ver".
+const ROUTINE_NAV_KEY = 'war300_routine_nav';
+function saveRoutineNav(){
+  try{ localStorage.setItem(ROUTINE_NAV_KEY, JSON.stringify({ openSub: openRoutineSub })); }catch(e){}
+}
+function clearRoutineNav(){
+  try{ localStorage.removeItem(ROUTINE_NAV_KEY); }catch(e){}
+}
+// Recupera qué ejercicios ya se habían marcado "Hecho" para ESTE MISMO
+// execList (mismo día, mismos subIds) desde EXEC_NAV_KEY — sin esto,
+// "Iniciar" desde Inicio o desde "Tu rutina" siempre arrancaba con
+// doneThisSession vacío, así ya hubieras marcado varios ejercicios antes
+// y no hubieras terminado la sesión (que es cuando de verdad se guarda en
+// Supabase). Si el execList guardado no coincide con el de ahora (rutina
+// distinta, día distinto), el filtro simplemente no devuelve nada — no
+// hay riesgo de arrastrar progreso de un día que ya no aplica.
+function recoverDoneForExecList(list){
+  const execSubIds = new Set(list.map(i => i.subId));
+  const recovered = new Set();
+  try{
+    const saved = JSON.parse(localStorage.getItem(EXEC_NAV_KEY) || 'null');
+    if(saved && Array.isArray(saved.doneList)){
+      saved.doneList.forEach(id => { if(execSubIds.has(id)) recovered.add(id); });
+    }
+  }catch(e){}
+  // El respaldo local de arriba se borra en cuanto se navega a otra
+  // pantalla — este de Supabase es el que de verdad sobrevive a eso.
+  if(donePersisted && list.length && donePersisted.accent === list[0].accent && Array.isArray(donePersisted.ids)){
+    donePersisted.ids.forEach(id => { if(execSubIds.has(id)) recovered.add(id); });
+  }
+  return recovered;
+}
 function tryRestoreExecution(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem(EXEC_NAV_KEY) || 'null'); }catch(e){ saved = null; }
@@ -2750,10 +3339,9 @@ function tryRestoreExecution(){
   lastSessionSummary = null;
   // Se restaura lo que ya estaba marcado "Hecho" antes de que se recargara
   // la app — solo se conservan los subIds que siguen existiendo en el
-  // execList reconstruido (por si la rutina cambió mientras tanto).
-  const savedDone = Array.isArray(saved.doneList) ? saved.doneList : [];
-  const execSubIds = new Set(execList.map(i => i.subId));
-  doneThisSession = new Set(savedDone.filter(id => execSubIds.has(id)));
+  // execList reconstruido (por si la rutina cambió mientras tanto), y se
+  // combina con el respaldo de Supabase por si ese tiene más al día.
+  doneThisSession = recoverDoneForExecList(execList);
   execList.forEach(item=>{
     const wk = item.subId + '::' + item.exName;
     const savedW = workData[wk];
@@ -2764,6 +3352,43 @@ function tryRestoreExecution(){
   currentView = 'execution';
   renderExecList();
   pushNav();
+  restoreScrollPos('execution');
+  return true;
+}
+
+// ---- Rutina de casa: mismo problema de fondo que EXEC_NAV_KEY (Android
+// mata la pestaña en segundo plano y Chrome la recarga desde cero al
+// volver) — se guarda qué ítem estaba abierto y cuáles ya se marcaron
+// "Hecho" para no perder el progreso de la sesión de casa a mitad de camino.
+const HOME_NAV_KEY = 'war300_home_nav';
+let openHomeIdx = null;
+let doneHomeSession = new Set();
+let homeSessionEnded = false;
+function saveHomeNav(){
+  try{
+    localStorage.setItem(HOME_NAV_KEY, JSON.stringify({ openIdx: openHomeIdx, doneList: [...doneHomeSession] }));
+  }catch(e){}
+}
+function clearHomeNav(){
+  try{ localStorage.removeItem(HOME_NAV_KEY); }catch(e){}
+}
+function tryRestoreHomeRoutine(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(HOME_NAV_KEY) || 'null'); }catch(e){ saved = null; }
+  if(!saved) return false;
+  if(HOME_LIST.length === 0){ clearHomeNav(); return false; }
+  openHomeIdx = (Number.isInteger(saved.openIdx) && saved.openIdx >= 0 && saved.openIdx < HOME_LIST.length)
+    ? saved.openIdx : null;
+  homeSessionEnded = false;
+  const savedDone = Array.isArray(saved.doneList) ? saved.doneList : [];
+  const homeIds = new Set(HOME_LIST.map(i => i.id));
+  doneHomeSession = new Set(savedDone.filter(id => homeIds.has(id)));
+  hideAllViews();
+  viewHomeRoutine.style.display = 'block';
+  currentView = 'home-routine';
+  renderHomeRoutineList();
+  pushNav();
+  restoreScrollPos('home-routine');
   return true;
 }
 
@@ -2792,40 +3417,68 @@ async function loadExerciseProgress(exName, token){
         }
       });
     });
-    el.innerHTML = points.length >= 2 ? buildProgressChart(points) : '';
-    const scroller = document.getElementById('epScroll');
+    el.innerHTML = points.length >= 2
+      ? buildGenericChart('Tu progreso en este ejercicio', points.map(p=>({fecha:p.fecha, val:p.peso})))
+      : '';
+    const scroller = el.querySelector('.ep-scroll');
     if(scroller) scroller.scrollLeft = scroller.scrollWidth;
   }catch(e){
     // si falla la consulta, la tarjeta simplemente no muestra el mini-gráfico
   }
 }
 
-function buildProgressChart(points){
-  // Espaciado fijo por punto: si hay más de ~5, el SVG queda más ancho que
-  // su contenedor y el contenedor (con scroll horizontal) permite deslizar
-  // con el dedo para ver los puntos anteriores.
-  const SPACING = 54, padX = 20, padTop = 22, padBottom = 16;
-  const H = 66;
+// Gráfica de línea reutilizable para cualquier serie de valores en el
+// tiempo (peso, series o repeticiones) — antes solo existía para peso
+// (buildProgressChart), ahora "Progreso > Por ejercicio" la usa 3 veces
+// por ejercicio con el mismo look.
+let epChartSeq = 0;
+function buildGenericChart(title, points, opts){
+  // v87 — Línea continua uniendo los puntos, área sombreada debajo, línea
+  // base y fechas abajo. Antes el color salía de --accent, que en la
+  // pantalla de Progreso no existe: la línea quedaba invisible y solo se
+  // veían los puntos (en negro). Ahora usa el color del día 1 si no hay acento.
+  opts = opts || {};
+  const decimals = opts.decimals || 0;
+  const SPACING = 56, padX = 22, padTop = 24, padBottom = 28;
+  const H = 120;
   const n = points.length;
   const W = Math.max(5, n - 1) * SPACING + padX * 2;
-  const pesos = points.map(p=>p.peso);
-  const min = Math.min(...pesos), max = Math.max(...pesos);
-  const range = max - min || 1;
+  const vals = points.map(p=>p.val);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if(min === max){ min -= 1; max += 1; }
+  const range = max - min;
+  const yBase = H - padBottom;
   const coords = points.map((p,i)=>{
-    const x = n === 1 ? padX : padX + i * SPACING;
-    const y = H - padBottom - ((p.peso - min)/range) * (H - padTop - padBottom);
-    return { x, y, peso: p.peso };
+    const x = padX + i * SPACING;
+    const y = yBase - ((p.val - min)/range) * (H - padTop - padBottom);
+    return { x, y, val: p.val, fecha: p.fecha };
   });
-  const path = coords.map((c,i)=> (i===0?'M':'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
-  const dots = coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="var(--accent)"/>`).join('');
-  const labels = coords.map(c=>`<text x="${c.x.toFixed(1)}" y="${(c.y - 10).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text)">${c.peso}</text>`).join('');
+  const gid = 'epg' + (++epChartSeq);
+  const line = coords.map((c,i)=> (i===0?'M':'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
+  const area = `${line} L${coords[n-1].x.toFixed(1)},${yBase} L${coords[0].x.toFixed(1)},${yBase} Z`;
+  const fmtDate = (f)=>{ const m = String(f||'').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${m[2]}/${m[1]}` : ''; };
+  const dots = coords.map((c,i)=>{
+    const last = i === n - 1;
+    return `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${last ? 4.5 : 3.5}" fill="currentColor" stroke="var(--panel)" stroke-width="2"/>`;
+  }).join('');
+  const labels = coords.map(c=>`<text x="${c.x.toFixed(1)}" y="${(c.y - 11).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text)">${decimals ? c.val.toFixed(decimals) : Math.round(c.val)}</text>`).join('');
+  const dates = coords.map(c=>`<text x="${c.x.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">${fmtDate(c.fecha)}</text>`).join('');
   return `
-    <p class="ep-title">Tu progreso en este ejercicio</p>
-    <div class="ep-scroll" id="epScroll">
-      <svg class="ep-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <p class="ep-title">${title}</p>
+    <div class="ep-scroll">
+      <svg class="ep-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="color:var(--accent, var(--day1));">
+        <defs>
+          <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="currentColor" stop-opacity="0.28"/>
+            <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <line x1="${padX - 10}" y1="${yBase}" x2="${W - padX + 10}" y2="${yBase}" stroke="var(--line)" stroke-width="1"/>
+        <path d="${area}" fill="url(#${gid})" stroke="none"/>
+        <path d="${line}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         ${dots}
         ${labels}
+        ${dates}
       </svg>
     </div>`;
 }
@@ -2837,15 +3490,31 @@ function buildProgressChart(points){
 // Si por algo no hay nada marcado para el día de hoy en particular (rutina
 // recién armada de otra forma, o todavía sin decidir ese día), se muestra
 // todo lo que haya en vez de dejar la pantalla vacía.
+// v81 — "Lo que toca hoy" sale SIEMPRE del día que corresponde en la
+// rotación (todayAccent) y de lo que el cliente tiene incluido en su
+// rutina. Antes salía de lo que quedara marcado en checkedSubIds y, si no
+// había nada de ese día, mostraba lo que hubiera de cualquier otro día —
+// por eso, después de terminar Tirón y tocar "Añadir/Quitar" en Tu rutina,
+// Inicio volvía a ofrecer ejercicios sueltos de Tirón en vez del día siguiente.
 function todayCheckedIds(allCheckedIds){
   const dayObj = DAYS.find(d => d.accent === todayAccent);
   if(!dayObj) return allCheckedIds;
-  const todays = allCheckedIds.filter(id => SUB_INDEX[id] && SUB_INDEX[id].dayName === dayObj.name);
-  return todays.length > 0 ? todays : allCheckedIds;
+  autoProgramDay(dayObj.accent);
+  return Object.values(SUB_INDEX)
+    .filter(s => s.dayName === dayObj.name && isSubIncluded(s))
+    .map(s => s.id);
 }
 
 function buildExecList(){
-  const checkedIds = todayCheckedIds(Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id)));
+  let checkedIds = todayCheckedIds(Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id)));
+  // Mismo orden que el cliente dejó armado a mano en "Tu rutina" (arrastrar
+  // para reordenar) — así "Iniciar" respeta ese orden, no solo la pantalla
+  // de resumen.
+  const execDayObj = DAYS.find(d => d.accent === todayAccent);
+  // v83 — Ya no se aplica el orden manual viejo (el arrastre se quitó en la
+  // v77). Ese orden guardado de la v76 coincidía por id con "Trapecio
+  // inferior" y "Braquial" y los ponía primeros, desordenando el entreno.
+  // Ahora el orden es siempre el del catálogo: compuestos primero.
   execList = [];
   checkedIds.forEach(id=>{
     const sub = SUB_INDEX[id];
@@ -2911,88 +3580,107 @@ function renderExecList(){
   continueBtn.style.visibility = 'visible';
   continueBtn.innerHTML = `Finalizar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  const rows = execList.map((item, idx)=>{
-    const isDone = doneThisSession.has(item.subId);
-    const isOpen = idx === openExecIdx;
-    const accentVar = item.accent === 1 ? 'var(--day1)' : item.accent === 2 ? 'var(--day2)' : 'var(--day3)';
-    const numHtml = isDone
-      ? `<svg width="13" height="13" viewBox="0 0 13 10" fill="none"><path d="M1 5L4.5 8.5L12 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-      : '';
-    return `
-      <div class="exec-item ${isDone ? 'done' : ''} ${isOpen ? 'open' : ''}" style="--accent:${accentVar};">
-        <div class="exec-item-row" data-idx="${idx}">
-          <div class="exec-check" data-check-idx="${idx}"><div class="exec-list-item-num">${numHtml}</div></div>
-          <div class="exec-list-item-info">
-            <p class="exec-list-item-title">${item.muscleName} — ${item.subName}</p>
-            <p class="exec-list-item-ex">${item.exName}</p>
-          </div>
-          <svg class="exec-item-chevron" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        ${isOpen ? execItemBodyHtml(item) : ''}
-      </div>`;
-  }).join('');
-
-  execCard.innerHTML = `<div class="exec-accordion">${rows}</div>`;
-
-  execCard.querySelectorAll('.exec-item-row').forEach(row=>{
-    row.addEventListener('click', ()=>{
-      const idx = Number(row.dataset.idx);
-      if(openExecIdx !== null) commitCurrentCard();
-      openExecIdx = (openExecIdx === idx) ? null : idx;
-      renderExecList();
-      if(openExecIdx !== null){
-        const openedEl = execCard.querySelector('.exec-item.open');
-        if(openedEl) openedEl.scrollIntoView({block:'start', behavior:'smooth'});
-      }
-    });
+  // v82 — Mismo formato que "Tu rutina", solo con lo del día que el
+  // cliente tiene añadido, agrupado por músculo y con el check de "Hecho"
+  // debajo de cada ejercicio.
+  openExecIdx = null;
+  commitCurrentCard = function(){};
+  continueBtn.classList.toggle('ready', execList.length > 0 && execList.every(i => doneThisSession.has(i.subId)));
+  const groups = [];
+  execList.forEach(item=>{
+    const sub = SUB_INDEX[item.subId];
+    if(!sub) return;
+    let g = groups[groups.length - 1];
+    if(!g || g.name !== item.muscleName){ g = { name: item.muscleName, subs: [] }; groups.push(g); }
+    g.subs.push(sub);
   });
-
-  // El checklist de adelante marca "Hecho" directo, sin necesidad de
-  // desplegar el ejercicio — si nunca se abrió, guarda el peso/series/reps
-  // sugeridos por defecto, igual que si el cliente los hubiera visto y
-  // aceptado tal cual.
-  execCard.querySelectorAll('.exec-check').forEach(chk=>{
-    chk.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      toggleExecDone(Number(chk.dataset.checkIdx));
-    });
-  });
-
-  if(openExecIdx !== null) wireOpenExecItem(execList[openExecIdx], openExecIdx);
+  const accent = execList[0] ? execList[0].accent : 1;
+  execCard.innerHTML = `
+    <div class="day" data-accent="${accent}">
+      <div class="rt-body">${groups.map(g => routineGroupHtml(g, 'exec')).join('')}</div>
+    </div>`;
+  wireRoutineTable(execCard, 'exec');
 }
 
 // Marca (o desmarca) "Hecho" un ejercicio directo desde el checklist de la
 // fila, sin pasar por el botón que antes vivía dentro de la tarjeta
 // desplegada — ese botón se quitó.
-async function toggleExecDone(idx){
+const EXEC_CHECK_SVG = `<svg width="13" height="13" viewBox="0 0 13 10" fill="none"><path d="M1 5L4.5 8.5L12 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+let finishingSession = false; // evita doble guardado de la sesión por toques repetidos
+
+function execItemEl(idx){
+  return execCard.querySelector(`.exec-item[data-item-idx="${idx}"]`);
+}
+function closeExecItemBody(idx){
+  const el = execItemEl(idx);
+  if(!el) return;
+  el.classList.remove('open');
+  const body = el.querySelector('.exec-item-body');
+  if(body) body.remove();
+}
+function openExecItemBody(idx){
+  const el = execItemEl(idx);
   const item = execList[idx];
+  if(!el || !item) return;
+  el.classList.add('open');
+  el.insertAdjacentHTML('beforeend', execItemBodyHtml(item));
+  wireOpenExecItem(item, idx);
+}
+function setExecItemDone(idx, isDone){
+  const item = execList[idx];
+  const el = item ? execCard.querySelector(`tr.rt-row[data-sub="${item.subId}"]`) : null;
+  if(!el) return;
+  el.classList.toggle('done', isDone);
+  const box = el.querySelector('.rt-check-box');
+  if(box) box.innerHTML = isDone ? EXEC_CHECK_SVG : '';
+  const label = el.querySelector('.rt-check-label');
+}
+
+// v75 — El check responde AL INSTANTE: se marca en pantalla primero y se
+// guarda en Supabase por detrás. Antes esperaba 2 viajes a Supabase antes
+// de pintar el chulito — con mala señal en el gym tardaba segundos, y si
+// se volvía a tocar mientras tanto, se desmarcaba solo ("no responde").
+function toggleExecDone(idx){
+  if(finishingSession) return;
+  const item = execList[idx];
+  if(!item) return;
+  // Si había un campo abierto (peso/reps/series), se guarda antes de marcar.
+  const act = document.activeElement;
+  if(act && act.classList && act.classList.contains('rt-in')) act.blur();
   if(doneThisSession.has(item.subId)){
     doneThisSession.delete(item.subId);
-    await persistState(true);
-    renderExecList();
+    continueBtn.classList.remove('ready');
+    setExecItemDone(idx, false);
+    saveExecNav();
+    persistState(true);
+    persistDoneToday();
     return;
   }
-  if(openExecIdx === idx){
-    commitCurrentCard();
-  } else {
+  {
     const workKey = item.subId + '::' + item.exName;
     if(!workData[workKey]){
       const patternKey = EXERCISE_PATTERN[item.exName] || 'curl';
       const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
-      workData[workKey] = { peso: guide.peso, series: String(guide.series), reps: String(guide.reps) };
+      workData[workKey] = { peso: null, series: String(guide.series), reps: String(guide.reps) };
     }
   }
   doneThisSession.add(item.subId);
-  await persistState(true);
   if(openExecIdx === idx){
+    closeExecItemBody(idx);
     openExecIdx = null;
     commitCurrentCard = function(){};
   }
-  if(doneThisSession.size >= execList.length){
-    await finishSession();
-    sessionEnded = true;
+  setExecItemDone(idx, true);
+  saveExecNav();
+
+  persistState(true);
+  persistDoneToday();
+  // v84 — Ya no se finaliza solo al marcar el último: la sesión se guarda
+  // únicamente cuando el cliente toca "Finalizar". Aquí solo se avisa.
+  if(execList.every(i => doneThisSession.has(i.subId))){
+    continueBtn.classList.add('ready');
+    showToast('¡Todo hecho! Toca Finalizar para guardar tu sesión.', true);
   }
-  renderExecList();
 }
 
 // Arma el interior de la tarjeta desplegada: peso/series/reps + nota +
@@ -3003,22 +3691,24 @@ function execItemBodyHtml(item){
   const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
   const workKey = item.subId + '::' + item.exName;
   const saved = workData[workKey] || {};
-  const pesoVal = saved.peso != null ? Number(saved.peso) : guide.peso;
+  const pesoVal = (saved.peso != null && saved.peso !== '') ? Number(saved.peso) : null;
   const firstNum = (val, fallback)=>{
     const m = String(val == null ? '' : val).match(/\d+/);
     return m ? parseInt(m[0], 10) : fallback;
   };
   const seriesVal = firstNum(saved.series != null ? saved.series : guide.series, 3);
   const repsVal = firstNum(saved.reps != null ? saved.reps : guide.reps, 10);
+  const repsLabel = guide.repsLabel || 'Repeticiones';
   return `
     <div class="exec-item-body">
       <div class="exec-fields">
+        ${guide.noPeso ? '' : `
         <div class="exec-field">
           <label>Peso (lb)</label>
           <div class="peso-slider" id="pesoSlider">
-            <span class="stepper-val" id="execPeso">${pesoVal}</span>
+            <span class="stepper-val" id="execPeso">${pesoVal == null ? '—' : pesoVal}</span>
           </div>
-        </div>
+        </div>`}
         <div class="exec-field">
           <label>Series</label>
           <div class="peso-slider" id="seriesSlider">
@@ -3026,17 +3716,22 @@ function execItemBodyHtml(item){
           </div>
         </div>
         <div class="exec-field">
-          <label>Repeticiones</label>
+          <label>${repsLabel}</label>
           <div class="peso-slider" id="repsSlider">
             <span class="stepper-val" id="execReps">${repsVal}</span>
           </div>
         </div>
       </div>
-      <div class="exec-badge">${guide.type}</div>
+      <div class="exec-badge-row">
+        <div class="exec-badge">${guide.type}</div>
+        <div class="exec-watch-link" id="execWatchLink">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M8 5v14l11-7-11-7z" fill="currentColor"/></svg>
+          Ver movimiento
+        </div>
+      </div>
       <p class="exec-note">${guide.note}</p>
 
       <div class="exec-tabs" id="execTabs">
-        <div class="exec-tab" data-tab="watch">Ver movimiento</div>
         <div class="exec-tab" data-tab="alt">Alternativas</div>
         <div class="exec-tab" data-tab="progress">Progreso</div>
       </div>
@@ -3053,7 +3748,7 @@ function wireOpenExecItem(item, idx){
   const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
   const workKey = item.subId + '::' + item.exName;
   const saved = workData[workKey] || {};
-  const pesoVal = saved.peso != null ? Number(saved.peso) : guide.peso;
+  const pesoVal = (saved.peso != null && saved.peso !== '') ? Number(saved.peso) : null;
   const firstNum = (val, fallback)=>{
     const m = String(val == null ? '' : val).match(/\d+/);
     return m ? parseInt(m[0], 10) : fallback;
@@ -3069,6 +3764,7 @@ function wireOpenExecItem(item, idx){
   const seriesDisplay = document.getElementById('execSeries');
   const repsDisplay = document.getElementById('execReps');
   function checkRecord(newPeso){
+    if(guide.noPeso) return;
     const baseline = prSnapshot[workKey];
     if(baseline != null && newPeso > baseline && !prsHitThisSession[workKey]){
       prsHitThisSession[workKey] = { exName: item.exName, peso: newPeso };
@@ -3081,6 +3777,7 @@ function wireOpenExecItem(item, idx){
   }
   commitCurrentCard = function(){
     [pesoDisplay, seriesDisplay, repsDisplay].forEach(el=>{
+      if(!el) return;
       const inp = el.querySelector('input');
       if(inp) inp.blur();
     });
@@ -3090,7 +3787,7 @@ function wireOpenExecItem(item, idx){
 
   function openInlineEditor(displayEl, current, allowDecimals, onCommit){
     if(displayEl.querySelector('input')) return;
-    displayEl.innerHTML = `<input type="text" inputmode="${allowDecimals ? 'decimal' : 'numeric'}" class="stepper-input" value="${current}">`;
+    displayEl.innerHTML = `<input type="text" inputmode="${allowDecimals ? 'decimal' : 'numeric'}" class="stepper-input" value="${current == null ? '' : current}">`;
     const inp = displayEl.querySelector('input');
     inp.focus();
     inp.select();
@@ -3100,7 +3797,7 @@ function wireOpenExecItem(item, idx){
       committed = true;
       let val = parseFloat(String(inp.value || '').replace(',', '.'));
       if(isNaN(val) || val < 0) val = current;
-      val = allowDecimals ? Math.round(val * 100) / 100 : Math.round(val);
+      if(val != null) val = allowDecimals ? Math.round(val * 100) / 100 : Math.round(val);
       onCommit(val);
     }
     inp.addEventListener('blur', commit);
@@ -3114,6 +3811,7 @@ function wireOpenExecItem(item, idx){
   // el roce del dedo. Ahora es únicamente tocar para escribirlo directo.
   function makeTapField(sliderId, onTapEdit){
     const sliderEl = document.getElementById(sliderId);
+    if(!sliderEl) return;
     sliderEl.addEventListener('click', ()=>{
       if(sliderEl.querySelector('input')) return;
       onTapEdit();
@@ -3122,9 +3820,9 @@ function wireOpenExecItem(item, idx){
 
   makeTapField('pesoSlider', ()=> openInlineEditor(pesoDisplay, pesoNow, true, (val)=>{
     pesoNow = val;
-    pesoDisplay.textContent = pesoNow;
+    pesoDisplay.textContent = pesoNow == null ? '—' : pesoNow;
     saveNow();
-    checkRecord(pesoNow);
+    if(pesoNow != null) checkRecord(pesoNow);
   }));
   makeTapField('seriesSlider', ()=> openInlineEditor(seriesDisplay, seriesNow, false, (val)=>{
     seriesNow = Math.max(1, val);
@@ -3169,10 +3867,7 @@ function wireOpenExecItem(item, idx){
   function openExecTab(tab){
     activeExecTab = tab;
     execTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-    if(tab === 'watch'){
-      execTabPanel.innerHTML = watchTabHtml(item);
-      playWatchAnimation(execTabPanel, item.exName);
-    } else if(tab === 'alt'){
+    if(tab === 'alt'){
       execTabPanel.innerHTML = `
         <div class="ex-card" style="padding:2px 0 4px;border:none;background:transparent;margin-bottom:0;">
           ${opts.filter(ex => ex !== item.exName).map(ex => {
@@ -3207,6 +3902,20 @@ function wireOpenExecItem(item, idx){
       openExecTab(tab);
     });
   });
+
+  // "Ver movimiento" ahora vive junto a la sugerencia de peso, no como
+  // pestaña — abre directo el modal (video real si hay, si no la silueta
+  // animada), igual que los "Ver" de la lista de alternativas.
+  const watchLink = execCard.querySelector('#execWatchLink');
+  if(watchLink){
+    watchLink.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const custom = (customExercises[item.subId] || []).find(c => c.nombre === item.exName);
+      const vid = EXERCISE_VIDEOS[item.exName] || (custom ? custom.video_url : null);
+      if(vid) openVideoModal(vid);
+      else openAnimModal(item.exName);
+    });
+  }
 }
 
 // ---- Navegación entre pantallas ----
@@ -3214,14 +3923,47 @@ const viewHome = document.getElementById('view-home');
 const viewStats = document.getElementById('view-stats');
 const viewStatsDaily = document.getElementById('view-stats-daily');
 const viewStatsPeriod = document.getElementById('view-stats-period');
+const viewStatsExercise = document.getElementById('view-stats-exercise');
 const viewStore = document.getElementById('view-store');
 const viewOnboarding = document.getElementById('view-onboarding');
 const viewSplitPicker = document.getElementById('view-split-picker');
 const viewDayOrder = document.getElementById('view-day-order');
 const viewRoutineSummary = document.getElementById('view-routine-summary');
+const viewHomeRoutine = document.getElementById('view-home-routine');
+const homeRoutineCard = document.getElementById('homeRoutineCard');
 const masthead = document.getElementById('masthead');
 let currentView = 'home';
 let cameFromHome = false;
+
+// ---- Recordar el scroll exacto al salir de la app ----
+// No es solo YouTube: cualquier salida de la app (cambiar a otra app, apagar
+// pantalla, notificación) puede hacer que el navegador mate la pestaña en
+// segundo plano. Al volver, la recarga siempre arrancaba con scroll 0 —
+// aunque ya se restaurara la pantalla correcta, aparecía arriba de todo en
+// vez de justo donde el usuario se había quedado. "visibilitychange"/
+// "pagehide" avisan justo antes de que eso pase, así que ahí se guarda la
+// posición exacta para devolverla al recargar.
+const SCROLL_POS_KEY = 'war300_scroll_pos';
+function saveScrollPos(){
+  try{
+    localStorage.setItem(SCROLL_POS_KEY, JSON.stringify({
+      view: currentView,
+      y: window.scrollY || document.documentElement.scrollTop || 0
+    }));
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveScrollPos(); });
+window.addEventListener('pagehide', saveScrollPos);
+// Se llama después de reconstruir una pantalla al recargar — si la posición
+// guardada era de esa misma pantalla, vuelve exactamente ahí.
+function restoreScrollPos(view){
+  try{
+    const saved = JSON.parse(localStorage.getItem(SCROLL_POS_KEY) || 'null');
+    if(saved && saved.view === view && typeof saved.y === 'number'){
+      requestAnimationFrame(()=> requestAnimationFrame(()=> window.scrollTo(0, saved.y)));
+    }
+  }catch(e){}
+}
 
 // ---- Botón "atrás" de Android ----
 // Cada vez que se navega hacia adelante dentro de la app, se agrega una
@@ -3242,7 +3984,13 @@ function currentViewExtra(){
 }
 function pushNav(){
   const extra = currentViewExtra();
-  try{ localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({ view: currentView, extra })); }catch(e){}
+  // Se guarda junto a la fecha LOCAL del día en que se navegó a esa
+  // pantalla — routeInitialScreen() solo la respeta si es la fecha de
+  // HOY. Así, si cierras la app a mitad de una serie, al reabrirla el
+  // mismo día sigues justo ahí; pero al abrir la app un día distinto,
+  // siempre empieza en Inicio (para poder elegir gym o casa), en vez de
+  // quedar pegada para siempre en la última pantalla donde estuviste.
+  try{ localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({ view: currentView, extra, date: localDateStr(new Date()) })); }catch(e){}
   if(suppressPush) return;
   try{ history.pushState({ view: currentView, extra }, ''); }catch(e){}
 }
@@ -3258,6 +4006,14 @@ function showExecutionSilently(){
   renderExecList();
   window.scrollTo(0,0);
 }
+// Mismo patrón que showExecutionSilently, para la rutina de casa.
+function showHomeRoutineSilently(){
+  hideAllViews();
+  viewHomeRoutine.style.display = 'block';
+  currentView = 'home-routine';
+  renderHomeRoutineList();
+  window.scrollTo(0,0);
+}
 // Muestra la pantalla que corresponde a ese nombre — mismo mapeo que usa
 // el botón "atrás" del navegador, reutilizado también para reanudar en la
 // misma pantalla cuando se reabre la app.
@@ -3269,11 +4025,13 @@ function restoreView(view, extra){
     case 'stats': goToStats(); break;
     case 'stats-daily': goToStatsDaily(); break;
     case 'stats-period': goToStatsPeriod(); break;
+    case 'stats-exercise': goToStatsExercise(); break;
     case 'store': goToStore(); break;
     case 'onboarding': goToOnboarding(); break;
     case 'split-picker': goToSplitPicker(); break;
     case 'day-order': goToDayOrder(); break;
     case 'routine-summary': goToRoutineSummary(extra && extra.mode); break;
+    case 'home-routine': showHomeRoutineSilently(); break;
     default: goHome();
   }
 }
@@ -3292,6 +4050,9 @@ function hideAllViews(){
   // todo lo demás al reabrir la app y siempre manda de vuelta ahí, aunque
   // el usuario ya estuviera viendo otra cosa.
   if(currentView === 'execution') clearExecNav();
+  continueBtn.classList.remove('ready');
+  if(currentView === 'routine-summary') clearRoutineNav();
+  if(currentView === 'home-routine') clearHomeNav();
   viewHome.style.display = 'none';
   viewChecklist.style.display = 'none';
   viewExercises.style.display = 'none';
@@ -3299,11 +4060,13 @@ function hideAllViews(){
   viewStats.style.display = 'none';
   viewStatsDaily.style.display = 'none';
   viewStatsPeriod.style.display = 'none';
+  viewStatsExercise.style.display = 'none';
   viewStore.style.display = 'none';
   viewOnboarding.style.display = 'none';
   viewSplitPicker.style.display = 'none';
   viewDayOrder.style.display = 'none';
   viewRoutineSummary.style.display = 'none';
+  viewHomeRoutine.style.display = 'none';
   prevBtn.style.display = 'none';
   // Limpieza al salir de la Tienda, sin importar por dónde se salga
   // (botón visible, atrás de Android, o eligiendo otra sección del menú).
@@ -3352,6 +4115,144 @@ function goToStatsPeriod(){
   pushNav();
 }
 
+// v77 — Se puede abrir directo en un ejercicio (desde "Progreso" en Tu
+// rutina): llega desplegado y la pantalla se mueve hasta él.
+let statsFocusPending = false;
+function goToStatsExercise(focusEx){
+  hideAllViews();
+  viewStatsExercise.style.display = 'block';
+  currentView = 'stats-exercise';
+  continueBtn.style.visibility = 'hidden';
+  openStatsExercise = (typeof focusEx === 'string') ? focusEx : null;
+  statsFocusPending = !!openStatsExercise;
+  loadStatsExerciseList();
+  window.scrollTo(0,0);
+  pushNav();
+}
+
+// ---- Progreso > Por ejercicio: peso, series y repeticiones de cada
+// ejercicio, cada uno con su propia gráfica, a partir del mismo historial
+// guardado en sesiones.resumen que ya alimenta el mini-gráfico de peso
+// dentro de la tarjeta de ejecución. ----
+let statsExerciseData = null; // exName -> [{fecha, peso, series, reps}]
+let openStatsExercise = null; // exName desplegado ahora mismo, o null
+
+async function loadStatsExerciseList(){
+  const container = document.getElementById('statsExerciseList');
+  if(!container || !currentUser) return;
+  container.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:20px 4px;">Cargando…</p>';
+  try{
+    const { data, error } = await sb.from('sesiones')
+      .select('fecha, resumen, tipo')
+      .eq('user_id', currentUser.id)
+      .order('fecha', { ascending: true })
+      .limit(200);
+    if(error) throw error;
+    const byExercise = {};
+    (data || []).forEach(row=>{
+      // Las sesiones de casa (tipo:'casa') no tienen peso/series/reps
+      // numéricos — se excluyen para no llenar esta pantalla, pensada para
+      // el progreso de gym, con filas de ejercicios sin datos que graficar.
+      if(row.tipo === 'casa') return;
+      (row.resumen || []).forEach(entry=>{
+        if(!entry.exName) return;
+        if(!byExercise[entry.exName]) byExercise[entry.exName] = [];
+        // Los ejercicios por tiempo (ej. "30-45 seg") no tienen repeticiones
+        // comparables en una gráfica — se dejan fuera de esa serie, igual
+        // que ya se excluyen del cálculo de tonelaje.
+        const repsIsTime = /seg/i.test(String(entry.reps || ''));
+        byExercise[entry.exName].push({
+          fecha: row.fecha,
+          peso: entry.peso != null ? Number(entry.peso) : null,
+          series: entry.series != null ? parseNumRange(entry.series) : null,
+          reps: (entry.reps != null && !repsIsTime) ? parseNumRange(entry.reps) : null,
+        });
+      });
+    });
+    statsExerciseData = byExercise;
+    renderStatsExerciseList();
+  }catch(e){
+    container.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:20px 4px;">No se pudo cargar tu progreso.</p>';
+  }
+}
+
+function renderStatsExerciseList(){
+  const container = document.getElementById('statsExerciseList');
+  if(!container) return;
+  const names = Object.keys(statsExerciseData || {}).sort((a,b)=> a.localeCompare(b, 'es'));
+  if(names.length === 0){
+    if(statsFocusPending){ statsFocusPending = false; showToast('Todavía no hay registros de este ejercicio.'); }
+    container.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:20px 4px;">Todavía no tienes entrenos registrados — el progreso por ejercicio aparece acá en cuanto termines tu primera sesión.</p>';
+    return;
+  }
+  container.innerHTML = names.map(name=>{
+    const isOpen = name === openStatsExercise;
+    const pts = statsExerciseData[name];
+    return `
+      <div class="summary-row ${isOpen ? 'open' : ''}" data-ex="${name}">
+        <div class="summary-row-head">
+          <div>
+            <p class="summary-row-title">${name}</p>
+            <p class="summary-row-desc">${pts.length} registro${pts.length === 1 ? '' : 's'} guardado${pts.length === 1 ? '' : 's'}</p>
+          </div>
+          <svg class="summary-row-edit" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        ${isOpen ? statsExerciseBodyHtml(pts) : ''}
+      </div>`;
+  }).join('');
+
+  if(statsFocusPending){
+    statsFocusPending = false;
+    const target = [...container.querySelectorAll('.summary-row')].find(r => r.dataset.ex === openStatsExercise);
+    if(target){
+      requestAnimationFrame(()=>{
+        target.scrollIntoView({block:'start'});
+        target.querySelectorAll('.ep-scroll').forEach(sc => sc.scrollLeft = sc.scrollWidth);
+      });
+    } else {
+      showToast('Todavía no hay registros de este ejercicio.');
+    }
+  }
+
+  container.querySelectorAll('.summary-row-head').forEach(head=>{
+    head.addEventListener('click', ()=>{
+      // Mismo criterio que en "Tu rutina": no se mueve la pantalla, la fila
+      // se despliega justo donde se tocó.
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const name = head.closest('.summary-row').dataset.ex;
+      openStatsExercise = (openStatsExercise === name) ? null : name;
+      statsFocusPending = false;
+      renderStatsExerciseList();
+      requestAnimationFrame(()=>{
+        window.scrollTo(0, scrollY);
+        container.querySelectorAll('.ep-scroll').forEach(s=> s.scrollLeft = s.scrollWidth);
+      });
+    });
+  });
+}
+
+// Tres gráficas por ejercicio: peso, series y repeticiones — cada una en su
+// propia caja, igual de "profesional" que el mini-gráfico que ya existía
+// en la tarjeta de ejecución (mismo estilo .ex-progress).
+function statsExerciseBodyHtml(pts){
+  const pesoPts = pts.filter(p=>p.peso != null).map(p=>({ fecha:p.fecha, val:p.peso }));
+  const seriesPts = pts.filter(p=>p.series != null).map(p=>({ fecha:p.fecha, val:p.series }));
+  const repsPts = pts.filter(p=>p.reps != null).map(p=>({ fecha:p.fecha, val:p.reps }));
+  return `
+    <div class="exec-item-body">
+      ${statsChartBox('Peso (lb)', pesoPts, 0)}
+      ${statsChartBox('Series', seriesPts, 0)}
+      ${statsChartBox('Repeticiones', repsPts, 0)}
+    </div>`;
+}
+
+function statsChartBox(title, points, decimals){
+  const inner = points.length >= 2
+    ? buildGenericChart(title, points, { decimals })
+    : `<p class="ep-title">${title}</p><p style="font-size:12.5px;color:var(--text-dim);margin:0;">Todavía no hay suficientes entrenos registrados para graficar esto.</p>`;
+  return `<div class="ex-progress" style="margin-top:0;margin-bottom:12px;">${inner}</div>`;
+}
+
 // Historial diario detallado (antes vivía en Inicio) — ahora dentro de
 // Estadísticas > Por día. Incluye el tonelaje estimado por sesión cuando
 // hay datos de peso guardados (sesiones anteriores a este cambio no lo tienen).
@@ -3384,7 +4285,10 @@ async function renderStatsDaily(){
         if(entry.series) bits.push(`${entry.series} series`);
         if(entry.reps) bits.push(`${entry.reps} reps`);
         if(entry.peso != null) bits.push(`${entry.peso}lb`);
-        const detail = bits.length ? bits.join(' · ') : 'sin datos guardados';
+        // entry.nota es el target de un ítem de la rutina de casa (ej. "30
+        // seg por lado") — esas entradas no tienen series/reps/peso
+        // numéricos, así que sin esto mostraban "sin datos guardados".
+        const detail = entry.nota ? entry.nota : (bits.length ? bits.join(' · ') : 'sin datos guardados');
         const title = entry.subName ? `${entry.muscleName} — ${entry.subName}` : entry.muscleName;
         const divider = (lastMuscle !== null && entry.muscleName !== lastMuscle) ? `<div class="hc-divider"></div>` : '';
         lastMuscle = entry.muscleName;
@@ -3476,7 +4380,7 @@ function startTodayFromHome(){
   prSnapshot = {};
   prsHitThisSession = {};
   lastSessionSummary = null;
-  doneThisSession = new Set();
+  doneThisSession = recoverDoneForExecList(execList);
   execList.forEach(item=>{
     const wk = item.subId + '::' + item.exName;
     const saved = workData[wk];
@@ -3496,6 +4400,9 @@ function dayNameFor(subId){
 }
 
 // La rutina rota sin parar entre los 3 días principales (Día 4 es aparte, opcional)
+// Última sesión de gym guardada { dia, fecha } — para avisar en Inicio
+// "Hoy ya hiciste X" y que quede claro por qué toca el día siguiente.
+let lastGymSession = null;
 async function getNextDayAccent(){
   // dayAssignment es el orden que el cliente armó en "Tu rutina" (slot 1/2/3
   // → qué tipo de día va ahí). Antes esta función rotaba por el número fijo
@@ -3505,11 +4412,17 @@ async function getNextDayAccent(){
   // dayAssignment, para que "Hoy" siga el orden que el cliente eligió.
   if(!currentUser) return dayAssignment[1] || 1;
   try{
+    // .not('dia','is',null) es necesario desde que existe la rutina de
+    // casa: esas sesiones se guardan con dia:null, y si la última sesión
+    // guardada fuera una de casa, esta consulta (sin el filtro) devolvía
+    // null y reseteaba por error la rotación del gym de vuelta al día 1.
     const { data, error } = await sb.from('sesiones')
-      .select('dia').eq('user_id', currentUser.id)
+      .select('dia, fecha').eq('user_id', currentUser.id)
+      .not('dia', 'is', null)
       .order('created_at', { ascending:false }).limit(1);
     if(error) throw error;
     const lastAccent = data && data[0] ? data[0].dia : null;
+    lastGymSession = data && data[0] ? { dia: Number(data[0].dia), fecha: data[0].fecha } : null;
     if(!lastAccent) return dayAssignment[1] || 1;
     const lastSlotEntry = Object.entries(dayAssignment).find(([slot, acc]) => acc === lastAccent);
     const lastSlot = lastSlotEntry ? Number(lastSlotEntry[0]) : lastAccent;
@@ -3523,7 +4436,10 @@ async function getNextDayAccent(){
 function autoProgramDay(accent){
   const dayObj = DAYS.find(d=>d.accent === accent) || DAYS[0];
   Object.values(SUB_INDEX).forEach(sub=>{
-    if(sub.dayName === dayObj.name) checkedSubIds.add(sub.id);
+    if(sub.dayName !== dayObj.name) return;
+    // Los opcionales solo entran si el cliente los añadió a su rutina.
+    if(!isSubIncluded(sub)) checkedSubIds.delete(sub.id);
+    else checkedSubIds.add(sub.id);
   });
   return dayObj;
 }
@@ -3543,6 +4459,7 @@ const REENTRY_GAP_DAYS = 10; // días sin entrenar para mostrar el mensaje de re
 
 async function renderHome(){
   const homeToday = document.getElementById('homeToday');
+  if(todayAccent == null && currentUser) todayAccent = await getNextDayAccent();
   let checkedIds = todayCheckedIds(Object.keys(SUB_INDEX).filter(id => checkedSubIds.has(id)));
 
   if(checkedIds.length === 0 && currentUser){
@@ -3557,23 +4474,26 @@ async function renderHome(){
     return sub ? `${sub.muscleName} — ${sub.name}` : '';
   }).filter(Boolean);
 
+  const choiceLabel = `<p class="home-choice-label">Elige tu entreno de hoy</p>`;
   if(items.length > 0){
     homeStartAction = startTodayFromHome;
     homeToday.innerHTML = `
+      ${choiceLabel}
       <div class="today-card" id="todayCardBtn">
-        <p class="tc-kicker">Hoy</p>
-        <p class="tc-title">Lo que sigue de tu rutina</p>
+        <p class="tc-kicker">🏋️ Gimnasio${doneTodayLine()}</p>
+        <p class="tc-title">${todayDayName() ? 'Hoy toca: ' + todayDayName() : 'Lo que sigue de tu rutina'}</p>
         <p class="tc-list">${items.join('<br>')}</p>
         <button class="tc-start-btn" id="tcStartBtn">
-          Iniciar
+          Iniciar en el gym
           <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>`;
   } else {
     homeStartAction = goToChecklistFromHome;
     homeToday.innerHTML = `
+      ${choiceLabel}
       <div class="today-card" id="todayCardBtn">
-        <p class="tc-kicker">Hoy</p>
+        <p class="tc-kicker">🏋️ Gimnasio</p>
         <p class="tc-title">Programa tu entreno</p>
         <p class="tc-list">Elige qué vas a trabajar hoy.</p>
         <button class="tc-start-btn" id="tcStartBtn">
@@ -3589,6 +4509,26 @@ async function renderHome(){
   document.getElementById('tcStartBtn').addEventListener('click', ()=>{
     if(homeStartAction) homeStartAction();
   });
+
+  // Segunda tarjeta, independiente de la de gym: la rutina de casa no
+  // rota ni depende de qué día toca — siempre está disponible. Antes su
+  // botón era "outline" (tc-secondary), lo que la hacía leer como una
+  // opción de segunda categoría en vez de una alternativa real — ahora
+  // tiene el mismo peso visual que el botón del gym, solo diferenciada
+  // por el ícono y el texto, para que sea un "o esto, o esto" real.
+  homeToday.insertAdjacentHTML('beforeend', `
+    <div class="home-choice-divider"><span>o</span></div>
+    <div class="today-card" id="homeRoutineCardBtn">
+      <p class="tc-kicker">🏠 En casa</p>
+      <p class="tc-title">Rutina de casa</p>
+      <p class="tc-list">10-15 min: cardio + postura primero, movilidad, equilibrio, agarre y respiración después.</p>
+      <button class="tc-start-btn" id="tcHomeRoutineBtn">
+        Iniciar en casa
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>`);
+  document.getElementById('tcHomeRoutineBtn').addEventListener('click', goToHomeRoutine);
+
   continueBtn.style.visibility = 'hidden';
 
   const welcomeBack = document.getElementById('welcomeBack');
@@ -3609,6 +4549,16 @@ async function renderHome(){
   }catch(e){
     welcomeBack.innerHTML = '';
   }
+}
+
+function todayDayName(){
+  const d = DAYS.find(x => x.accent === todayAccent);
+  return d ? d.name : '';
+}
+function doneTodayLine(){
+  if(!lastGymSession || lastGymSession.fecha !== localDateStr(new Date())) return '';
+  const d = DAYS.find(x => x.accent === lastGymSession.dia);
+  return d ? ` · ✓ Hoy ya hiciste ${d.name}` : '';
 }
 
 // Convierte "12-15" -> 13.5 (promedio), "8" -> 8. Si no hay número, devuelve 0.
@@ -3659,8 +4609,10 @@ async function finishSession(){
     tonelaje += peso * parseNumRange(w.series) * parseNumRange(repsStr);
   });
 
+  let sessionInserted = false;
   try{
-    await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen, dia: dia ? Number(dia) : null });
+    const { error } = await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen, dia: dia ? Number(dia) : null });
+    if(!error) sessionInserted = true;
   }catch(e){
     // si falla el guardado del historial, no bloquea el flujo
   }
@@ -3672,7 +4624,19 @@ async function finishSession(){
   // bien guardada con el día correcto, Inicio te volvía a programar el
   // MISMO día en vez de pasar al siguiente, hasta que cerraras la app del
   // todo y la reabrieras.
-  todayAccent = await getNextDayAccent();
+  // v75 — Si la sesión se guardó bien, ya sabemos cuál fue el último día
+  // (el que se acaba de guardar): se calcula el siguiente aquí mismo, con la
+  // misma lógica que getNextDayAccent(), sin otra consulta a Supabase.
+  if(sessionInserted && dia){
+    lastGymSession = { dia: Number(dia), fecha };
+    const lastAccent = Number(dia);
+    const lastSlotEntry = Object.entries(dayAssignment).find(([slot, acc]) => acc === lastAccent);
+    const lastSlot = lastSlotEntry ? Number(lastSlotEntry[0]) : lastAccent;
+    const nextSlot = (lastSlot % 3) + 1;
+    todayAccent = dayAssignment[nextSlot] || nextSlot;
+  } else {
+    todayAccent = await getNextDayAccent();
+  }
 
   lastSessionSummary = {
     count: doneList.length,
@@ -3683,11 +4647,117 @@ async function finishSession(){
   checkedSubIds.clear();
   decidedSubIds.clear();
   board.querySelectorAll('.sub.on').forEach(el=> el.classList.remove('on'));
-  execList.forEach(i => { delete chosenExercise[i.subId]; });
+  // v77 — El ejercicio elegido se mantiene entre sesiones (antes se
+  // borraba y volvía al primero de la lista después de cada entreno).
   checklistStep = { day: 1, muscleIndex: 0, subIndex: 0 };
-  await persistState(true);
-  await persistChecklistStep();
-  await persistDecidedSubs();
+  // v75 — Estos 4 guardados tocan filas distintas: van en paralelo en vez
+  // de uno detrás de otro (antes "Finalizar" esperaba 4 viajes seguidos).
+  // La sesión ya quedó guardada en "sesiones" — se borra el respaldo de
+  // "Hecho en curso" para que no reaparezca marcado cuando este mismo día
+  // vuelva a tocar en la próxima rotación (esperando antes a que termine
+  // cualquier guardado de ese respaldo que siguiera en camino).
+  await Promise.all([
+    persistState(true),
+    persistChecklistStep(),
+    persistDecidedSubs(),
+    (async ()=>{ await persistDoneToday.idle(); await clearPersistedDoneToday(); })(),
+  ]);
+}
+
+// ---- Rutina de casa: arranque, listado y cierre de sesión ----
+function goToHomeRoutine(){
+  openHomeIdx = null;
+  homeSessionEnded = false;
+  doneHomeSession = new Set();
+  renderHomeRoutineList();
+  hideAllViews();
+  viewHomeRoutine.style.display = 'block';
+  currentView = 'home-routine';
+  window.scrollTo(0,0);
+  pushNav();
+}
+
+function homeItemBodyHtml(item){
+  const vid = HOME_VIDEOS[item.name];
+  const verHtml = vid ? `<div class="ver-link" data-video="${vid}" style="margin-top:12px;">Ver ejecución correcta</div>` : '';
+  return `
+    <div class="exec-item-body">
+      <p class="exec-note" style="margin-top:0;">${item.desc}</p>
+      <div class="exec-badge">${item.target}</div>
+      ${verHtml}
+    </div>`;
+}
+
+function renderHomeRoutineList(){
+  if(homeSessionEnded){
+    clearHomeNav();
+    continueBtn.style.visibility = 'hidden';
+    homeRoutineCard.innerHTML = `
+      <div class="exec-done">
+        <h2>¡Listo! 🧘</h2>
+        <p>${doneHomeSession.size < homeTodayItems().length ? `Cerraste con ${doneHomeSession.size} de ${homeTodayItems().length} ejercicios hechos.` : 'Terminaste toda la rutina de casa de hoy.'}</p>
+        <button id="homeRoutineDoneHome" style="margin-top:22px;width:100%;background:var(--text);color:var(--ink);border:none;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;padding:15px;border-radius:12px;cursor:pointer;">Volver al inicio</button>
+      </div>`;
+    document.getElementById('homeRoutineDoneHome').addEventListener('click', goHome);
+    return;
+  }
+
+  saveHomeNav();
+  continueBtn.style.visibility = 'visible';
+  continueBtn.innerHTML = `Finalizar <svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  ensureHomePosturaIncluded();
+  ensureHomeExtraIncluded();
+  continueBtn.classList.toggle('ready', homeAllDone());
+  homeRoutineCard.innerHTML = `
+    <div class="day" data-accent="1">
+      <div class="rt-body">${homeTableHtml('exec')}</div>
+    </div>`;
+  wireHomeTable(homeRoutineCard, 'exec');
+}
+
+// Lo que toca hoy en casa: el cardio elegido + todo lo incluido.
+function homeTodayItems(){
+  ensureHomePosturaIncluded();
+  ensureHomeExtraIncluded();
+  const out = [homeCardioChosenItem()];
+  HOME_CATEGORIES.forEach(cat=>{
+    if(cat.name === 'Cardio (zona 2)') return;
+    const set = homeToggleSet(cat.name);
+    cat.items.forEach(i => { if(set.has(i.id)) out.push(i); });
+  });
+  return out;
+}
+function homeAllDone(){
+  const items = homeTodayItems();
+  return items.length > 0 && items.every(i => doneHomeSession.has(i.id));
+}
+
+function toggleHomeDone(idx){
+  const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const item = HOME_LIST[idx];
+  if(!item) return;
+  if(doneHomeSession.has(item.id)) doneHomeSession.delete(item.id);
+  else doneHomeSession.add(item.id);
+  renderHomeRoutineList();
+  if(homeAllDone()) showToast('¡Todo hecho! Toca Finalizar para guardar tu sesión.', true);
+  requestAnimationFrame(()=> window.scrollTo(0, scrollY));
+}
+
+async function finishHomeSession(){
+  if(!currentUser) return;
+  const doneList = HOME_LIST.filter(i => doneHomeSession.has(i.id));
+  if(doneList.length === 0) return;
+  const resumen = doneList.map(i => ({
+    muscleName: i.catName, subName: null, exName: i.name,
+    peso: null, series: null, reps: null, nota: i.target,
+  }));
+  const fecha = localDateStr(new Date());
+  try{
+    await sb.from('sesiones').insert({ user_id: currentUser.id, fecha, resumen, dia: null, tipo: 'casa' });
+  }catch(e){
+    // si falla el guardado del historial, no bloquea el flujo
+  }
 }
 
 function goToExercises(){
@@ -3713,7 +4783,7 @@ function goToExecution(){
   prSnapshot = {};
   prsHitThisSession = {};
   lastSessionSummary = null;
-  doneThisSession = new Set();
+  doneThisSession = recoverDoneForExecList(execList);
   execList.forEach(item=>{
     const wk = item.subId + '::' + item.exName;
     const saved = workData[wk];
@@ -3745,6 +4815,7 @@ continueBtn.addEventListener('click', async ()=>{
   }
   else if(currentView === 'exercises') goToExecution();
   else if(currentView === 'execution'){
+    if(finishingSession) return;
     // "Finalizar" ahora está siempre disponible, en cualquier ejercicio —
     // el cliente puede cerrar la sesión cuando quiera, no solo al llegar
     // al último. Guarda lo que tenía abierto (si algo estaba abierto) y
@@ -3752,8 +4823,33 @@ continueBtn.addEventListener('click', async ()=>{
     // que estuviera viendo en este momento, si no le dio "Hecho", NO
     // cuenta como hecho ni entra en el resumen de la sesión.
     if(openExecIdx !== null) commitCurrentCard();
+    // v84 — Confirmación antes de cerrar, para que un toque accidental no
+    // termine el entreno; y aviso si no hay nada marcado (antes volvía a
+    // Inicio en silencio sin guardar nada).
+    const act = document.activeElement;
+    if(act && act.classList && act.classList.contains('rt-in')) act.blur();
+    const total = execList.length;
+    const nDone = execList.filter(i => doneThisSession.has(i.subId)).length;
+    if(nDone === 0){
+      showToast('Marca al menos un ejercicio como "Hecho" para guardar.', true);
+      return;
+    }
+    const msg = nDone >= total
+      ? `¿Guardar y terminar el entreno? Hiciste los ${total} ejercicios.`
+      : `¿Terminar el entreno? Hiciste ${nDone} de ${total} ejercicios. Los que no marcaste no se guardan.`;
+    if(!confirm(msg)) return;
+    continueBtn.classList.remove('ready');
     const hadProgress = doneThisSession.size > 0;
-    await finishSession();
+    finishingSession = true;
+    continueBtn.disabled = true;
+    if(hadProgress) continueBtn.textContent = 'Guardando…';
+    try{
+      await persistDoneToday.idle();
+      await finishSession();
+    } finally {
+      finishingSession = false;
+      continueBtn.disabled = false;
+    }
     if(hadProgress){
       sessionEnded = true;
       renderExecList();
@@ -3761,6 +4857,29 @@ continueBtn.addEventListener('click', async ()=>{
     } else {
       // No marcó "Hecho" en ningún ejercicio — no hay nada que mostrar
       // como resumen, así que vuelve directo a Inicio.
+      goHome();
+    }
+  }
+  else if(currentView === 'home-routine'){
+    const todayItems = homeTodayItems();
+    const nDone = todayItems.filter(i => doneHomeSession.has(i.id)).length;
+    if(nDone === 0){
+      showToast('Marca al menos un ejercicio como "Hecho" para guardar.', true);
+      return;
+    }
+    const msg = nDone >= todayItems.length
+      ? `¿Guardar y terminar la rutina de casa? Hiciste los ${todayItems.length} ejercicios.`
+      : `¿Terminar la rutina de casa? Hiciste ${nDone} de ${todayItems.length} ejercicios. Los que no marcaste no se guardan.`;
+    if(!confirm(msg)) return;
+    continueBtn.classList.remove('ready');
+    const hadProgress = doneHomeSession.size > 0;
+    await finishHomeSession();
+    if(hadProgress){
+      homeSessionEnded = true;
+      renderHomeRoutineList();
+      window.scrollTo(0,0);
+    } else {
+      clearHomeNav();
       goHome();
     }
   }
@@ -3772,7 +4891,12 @@ prevBtn.addEventListener('click', async ()=>{
   if(retreated) await persistChecklistStep();
 });
 
-document.getElementById('routineSummaryStartBtn').addEventListener('click', goToExecution);
+// Antes este botón ("Iniciar") llevaba derecho al gym (goToExecution),
+// sin dar oportunidad de elegir casa — pasando por alto que "Tu rutina"
+// programa AMBAS cosas (gym y casa) en la misma pantalla. Ahora manda a
+// Inicio, donde están las dos tarjetas ("Elige tu entreno de hoy") para
+// que la persona decida ahí cuál de las dos empezar.
+document.getElementById('routineSummaryStartBtn').addEventListener('click', goHome);
 document.getElementById('routineSummaryStoreBtn').addEventListener('click', goToStore);
 
 document.getElementById('routineSummaryToggle').addEventListener('click', ()=>{
@@ -3793,13 +4917,24 @@ document.getElementById('execBackBtn').addEventListener('click', ()=>{
   history.back();
 });
 
+document.getElementById('homeRoutineBackBtn').addEventListener('click', ()=>{
+  clearHomeNav();
+  history.back();
+});
+
 const statusEl = document.getElementById('status');
 let toastTimer = null;
-function showToast(msg){
+// v84 — Un aviso importante (ej. "¡Todo hecho!") no lo tapa el "Guardado ✓"
+// automático que llega justo después; y dura un poco más en pantalla.
+let importantToastUntil = 0;
+function showToast(msg, important){
+  if(msg === 'Guardado ✓' && Date.now() < importantToastUntil) return;
+  const ms = important ? 3500 : 2200;
+  if(important) importantToastUntil = Date.now() + ms;
   statusEl.textContent = msg;
   statusEl.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=> statusEl.classList.remove('show'), 2200);
+  toastTimer = setTimeout(()=> statusEl.classList.remove('show'), ms);
 }
 
 const workData = {}; // subId::ejercicio -> { peso, series, reps }
@@ -3832,15 +4967,43 @@ function buildRows(){
   return rows;
 }
 
-async function persistState(silent){
+// v75 — Antes cada toque (marcar un check, abrir/cerrar un ejercicio,
+// cambiar un peso) re-enviaba TODAS las filas del usuario a Supabase.
+// Ahora solo se envían las filas que cambiaron desde el último guardado
+// exitoso, y los guardados van en cola (uno a la vez, ver coalesce()).
+let lastSavedRows = new Map(); // work_key -> JSON de la última fila guardada con éxito
+let persistRunning = null, persistAgain = false, persistAllSilent = true;
+function persistState(silent){
+  if(!silent) persistAllSilent = false;
+  if(persistRunning){ persistAgain = true; return persistRunning; }
+  persistRunning = (async ()=>{
+    try{
+      do{
+        persistAgain = false;
+        const s = persistAllSilent;
+        persistAllSilent = true;
+        await persistStateOnce(s);
+      } while(persistAgain);
+    } finally { persistRunning = null; }
+  })();
+  return persistRunning;
+}
+async function persistStateOnce(silent){
   if(!currentUser) return;
   const rows = buildRows();
+  const changed = rows.filter(r => lastSavedRows.get(r.work_key) !== JSON.stringify(r));
+  if(changed.length === 0){
+    if(!silent) showToast('Progreso guardado.');
+    return;
+  }
   try{
-    const { error } = await sb.from('progreso').upsert(rows, { onConflict: 'user_id,work_key' });
+    const { error } = await sb.from('progreso').upsert(changed, { onConflict: 'user_id,work_key' });
     if(error) throw error;
+    changed.forEach(r => lastSavedRows.set(r.work_key, JSON.stringify(r)));
     if(!silent) showToast('Progreso guardado.');
     else showToast('Guardado ✓');
   }catch(e){
+    // No se marca como guardado — el próximo guardado lo reintenta solo.
     if(!silent) showToast('No se pudo guardar, inténtalo de nuevo.');
   }
 }
@@ -3853,10 +5016,55 @@ async function persistState(silent){
 // sola fila).
 let loadStateInFlight = false;
 
+// v77 — El catálogo cambió (sub-músculos nuevos, fusionados y renombrados),
+// así que los ids viejos ya no existen. Para no perder lo ya registrado, se
+// pasa por NOMBRE de ejercicio: si un ejercicio sigue existiendo en el
+// catálogo nuevo, hereda su peso/series/reps guardados y, si estaba
+// elegido, sigue elegido. Nada viejo se borra de Supabase.
+function migrateLegacyData(){
+  let changed = false;
+  const known = new Set(Object.keys(SUB_INDEX));
+  const legacyByEx = {};
+  Object.keys(workData).forEach(k=>{
+    const i = k.indexOf('::');
+    if(i < 0) return;
+    if(known.has(k.slice(0, i))) return;
+    const w = workData[k];
+    if(w && (w.peso != null || w.series || w.reps)) legacyByEx[k.slice(i + 2)] = w;
+  });
+  const legacyChosen = Object.keys(chosenExercise).filter(id => !known.has(id)).map(id => chosenExercise[id]);
+  Object.values(SUB_INDEX).forEach(sub=>{
+    const opts = exercisesFor(sub.muscleName, sub.name);
+    opts.forEach(ex=>{
+      const key = sub.id + '::' + ex;
+      if(!workData[key] && legacyByEx[ex]){
+        workData[key] = { peso: legacyByEx[ex].peso, series: legacyByEx[ex].series, reps: legacyByEx[ex].reps };
+        changed = true;
+      }
+    });
+    const prev = legacyChosen.find(ex => opts.includes(ex));
+    if(!chosenExercise[sub.id]){
+      if(prev){ chosenExercise[sub.id] = prev; changed = true; }
+    } else if(catalogVersionSeen < CATALOG_VERSION){
+      const v77First = V77_DEFAULT_FIRST[sub.muscleName + '__' + sub.name];
+      if(v77First && chosenExercise[sub.id] === v77First){
+        const next = prev || opts[0];
+        if(next !== chosenExercise[sub.id]){ chosenExercise[sub.id] = next; changed = true; }
+      }
+    }
+  });
+  if(catalogVersionSeen < CATALOG_VERSION){
+    catalogVersionSeen = CATALOG_VERSION;
+    persistCatalogVersion();
+  }
+  return changed;
+}
+
 async function loadState(){
   if(!currentUser) return;
   if(loadStateInFlight) return;
   loadStateInFlight = true;
+  lastSavedRows = new Map(); // tras recargar de Supabase, el primer guardado vuelve a enviar todo
   try{
     const { data, error } = await sb.from('progreso').select('*').eq('user_id', currentUser.id);
     if(error) throw error;
@@ -3870,6 +5078,14 @@ async function loadState(){
     // podría colarse como si fuera parte de los datos reales del usuario.
     checkedSubIds.clear();
     decidedSubIds.clear();
+    homeCardioChoice = null;
+    homePosturaIncluded = null;
+    homeExtraIncluded = null;
+    donePersisted = null;
+    routineSubOrder = {};
+    optionalIncluded = new Set();
+    excludedSubs = new Set();
+    catalogVersionSeen = 0;
 
     rows.forEach(row=>{
       if(row.work_key === '__theme__'){
@@ -3893,6 +5109,54 @@ async function loadState(){
           const saved = JSON.parse(row.reps || '[]');
           saved.forEach(id => decidedSubIds.add(id));
         }catch(e){ /* si viene corrupto, se tratan como no decididos */ }
+      } else if(row.work_key === '__home_cardio_choice__'){
+        homeCardioChoice = row.series || null;
+      } else if(row.work_key === '__home_postura_included__'){
+        try{
+          const saved = JSON.parse(row.reps || 'null');
+          if(Array.isArray(saved)) homePosturaIncluded = new Set(saved);
+        }catch(e){ /* si viene corrupto, se usan los 6 por defecto */ }
+      } else if(row.work_key === '__sub_order__'){
+        try{
+          const saved = JSON.parse(row.reps || 'null');
+          if(saved && typeof saved === 'object') routineSubOrder = saved;
+        }catch(e){ /* si viene corrupto, se usa el orden natural del catálogo */ }
+      } else if(row.work_key === '__catalog_version__'){
+        catalogVersionSeen = parseInt(row.reps, 10) || 0;
+      } else if(row.work_key === '__excluded_subs__'){
+        try{
+          const saved = JSON.parse(row.reps || '[]');
+          if(Array.isArray(saved)) excludedSubs = new Set(saved);
+        }catch(e){}
+      } else if(row.work_key === '__optional_subs__'){
+        try{
+          const saved = JSON.parse(row.reps || '[]');
+          if(Array.isArray(saved)) optionalIncluded = new Set(saved);
+        }catch(e){ /* si viene corrupto, ningún opcional queda incluido */ }
+      } else if(row.work_key === '__done_today__'){
+        try{
+          const saved = JSON.parse(row.reps || 'null');
+          if(saved && Array.isArray(saved.ids)) donePersisted = saved;
+        }catch(e){ /* si viene corrupto, simplemente no hay nada que recuperar */ }
+      } else if(row.work_key === '__home_extra_included__'){
+        try{
+          const saved = JSON.parse(row.reps || 'null');
+          if(saved && typeof saved === 'object'){
+            homeExtraIncluded = {};
+            HOME_EXTRA_CATEGORY_NAMES.forEach(name=>{
+              const cat = HOME_CATEGORIES.find(c => c.name === name);
+              const ids = cat.items.map(i => i.id);
+              // v89 — ejercicios renombrados: el id viejo pasa al nuevo.
+              const RENAMED = { 'home_defensa-personal_3-golpes-basicos-jab-y-directo': 'home_defensa-personal_3-golpes' };
+              const arr = Array.isArray(saved[name]) ? saved[name].map(id => RENAMED[id] || id) : null;
+              // v86 — Si lo guardado solo tiene ejercicios que ya no existen
+              // (ej. el "Boxeo básico" de antes), la categoría nueva entra completa.
+              homeExtraIncluded[name] = (arr && (arr.length === 0 || arr.some(id => ids.includes(id))))
+                ? new Set(arr)
+                : new Set(ids);
+            });
+          }
+        }catch(e){ /* si viene corrupto, se usan todos por defecto */ }
       } else if(row.work_key.includes('::')){
         workData[row.work_key] = { peso: row.peso, series: row.series, reps: row.reps };
       } else {
@@ -3913,6 +5177,8 @@ async function loadState(){
         });
       }
     }catch(e){ /* si falla, simplemente no se muestran los personalizados guardados antes */ }
+
+    if(migrateLegacyData()) persistState(true);
 
     // Ya con dayAssignment, checkedSubIds y el paso guardado listos,
     // pintamos una sola vez — el checklist sale mostrando de una el
@@ -3966,7 +5232,15 @@ document.getElementById('navHome').addEventListener('click', ()=>{
 
 document.getElementById('navRutina').addEventListener('click', ()=>{
   closeDropdowns();
-  goToRoutineSummary('view');
+  // "Tu rutina" siempre incluye los 3 días completos — ya no se arma sub-
+  // músculo por sub-músculo. Antes este botón del menú llamaba directo a
+  // goToRoutineSummary('view'), que solo pinta lo que YA estuviera en
+  // checkedSubIds — si por lo que fuera faltaba algo ahí (por ejemplo, tras
+  // el cambio de ids de hoy), esos días se veían vacíos en vez de mostrar
+  // la lista completa con sus descripciones. goToChecklistFromHome()
+  // primero vuelve a incluir los 27 sub-músculos (autoProgramAllDays) y
+  // recién ahí muestra "Tu rutina", así que siempre se ve completa.
+  goToChecklistFromHome();
 });
 
 document.getElementById('navStats').addEventListener('click', ()=>{
@@ -3977,8 +5251,10 @@ document.getElementById('navStats').addEventListener('click', ()=>{
 document.getElementById('statsBackBtn').addEventListener('click', ()=> history.back());
 document.getElementById('statsDailyBtn').addEventListener('click', goToStatsDaily);
 document.getElementById('statsPeriodBtn').addEventListener('click', goToStatsPeriod);
+document.getElementById('statsExerciseBtn').addEventListener('click', goToStatsExercise);
 document.getElementById('statsDailyBackBtn').addEventListener('click', ()=> history.back());
 document.getElementById('statsPeriodBackBtn').addEventListener('click', ()=> history.back());
+document.getElementById('statsExerciseBackBtn').addEventListener('click', ()=> history.back());
 
 document.getElementById('navStore').addEventListener('click', ()=>{
   closeDropdowns();
@@ -4269,6 +5545,14 @@ document.getElementById('settingsBtn').addEventListener('click', ()=>{
 document.getElementById('settingsClose').addEventListener('click', ()=>{
   settingsOverlay.classList.remove('open');
 });
+// Vista previa manual de la pantalla de bienvenida — no borra ni toca nada
+// de lo ya guardado, solo la muestra (la misma que ve un cliente nuevo con
+// 0 sesiones registradas). Sirve para verla sin tener que crear una cuenta
+// de prueba cada vez.
+document.getElementById('viewOnboardingBtn').addEventListener('click', ()=>{
+  settingsOverlay.classList.remove('open');
+  goToOnboarding();
+});
 settingsOverlay.addEventListener('click', (e)=>{
   if(e.target === settingsOverlay) settingsOverlay.classList.remove('open');
 });
@@ -4488,6 +5772,7 @@ async function onLoggedIn(user){
   await loadState();
   todayAccent = await getNextDayAccent();
   if(tryRestoreExecution()) return;
+  if(tryRestoreHomeRoutine()) return;
   await routeInitialScreen();
 }
 
@@ -4539,6 +5824,459 @@ function goToDayOrder(){
 // si ninguna está abierta). Antes tocar una fila navegaba al checklist
 // paso a paso; ahora se despliega ahí mismo, igual que en Ejecución.
 let openRoutineSub = null;
+// subIds cuyo panel de peso/series/reps está OCULTO por elección del
+// cliente (tocó el ejercicio ya elegido para cerrarlo) — por defecto, en
+// cuanto un sub-músculo tiene ejercicio elegido, ese panel se ve; tocar
+// ese mismo ejercicio de nuevo lo oculta, y tocarlo otra vez lo vuelve a
+// mostrar. Solo es un estado de la pantalla, no hace falta guardarlo.
+let routineFieldsCollapsed = new Set();
+
+// Orden personalizado de sub-músculos dentro de cada día, elegido por el
+// cliente arrastrando (ver wireRoutineDragHandles) — { nombreDelDía:
+// [subId, subId, ...] }. Si un día no tiene entrada acá (o tiene un
+// sub-músculo nuevo que no estaba cuando se guardó el orden), se usa/añade
+// el orden natural del catálogo — nunca desaparece nada por falta de orden.
+let routineSubOrder = {};
+function orderSubIdsForDay(dayName, subIds){
+  const order = routineSubOrder[dayName];
+  if(!order || !order.length) return subIds;
+  const pending = new Set(subIds);
+  const ordered = [];
+  order.forEach(id => { if(pending.has(id)){ ordered.push(id); pending.delete(id); } });
+  subIds.forEach(id => { if(pending.has(id)) ordered.push(id); });
+  return ordered;
+}
+async function persistSubOrder(){
+  if(!currentUser) return;
+  try{
+    await sb.from('progreso').upsert([{
+      user_id: currentUser.id,
+      work_key: '__sub_order__',
+      reps: JSON.stringify(routineSubOrder),
+    }], { onConflict: 'user_id,work_key' });
+  }catch(e){}
+}
+
+// ---- v77: "Tu rutina" como tabla por músculo ----
+// Cada fila es un sub-músculo: las dos primeras columnas (sub-músculo y
+// ejercicio) quedan fijas y el resto (peso, repeticiones, series, ver
+// ejecución y progreso) se desliza con el dedo hacia los lados. Tocar el
+// ejercicio despliega debajo todas sus alternativas + "Agregar ejercicio".
+const rtChevron = `<svg viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const rtPlaySvg = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M8 5v14l11-7-11-7z" fill="currentColor"/></svg>`;
+const rtChartSvg = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M4 19V5M4 19H20M8 15L12 11L15 13L20 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function routineChosenFor(sub){
+  if(!chosenExercise[sub.id]){
+    const opts = exercisesFor(sub.muscleName, sub.name);
+    if(opts.length) chosenExercise[sub.id] = opts[0];
+  }
+  return chosenExercise[sub.id] || '';
+}
+function rtFirstNum(val, fallback){
+  const m = String(val == null ? '' : val).match(/\d+/);
+  return m ? parseInt(m[0], 10) : fallback;
+}
+
+// v82 — mode 'exec' = pantalla "Entreno de hoy": misma tabla, pero sin
+// "Quitar" y con el check de "Hecho" debajo del ejercicio.
+let openExecAltSub = null; // sub-músculo con las alternativas abiertas en el entreno
+function routineTableRowHtml(sub, mode){
+  const isExec = mode === 'exec';
+  const included = isExec ? true : isSubIncluded(sub);
+  const ex = routineChosenFor(sub);
+  const guide = REP_GUIDE[EXERCISE_PATTERN[ex] || 'curl'] || REP_GUIDE['curl'];
+  const w = workData[sub.id + '::' + ex] || {};
+  const peso = (w.peso != null && w.peso !== '') ? w.peso : '';
+  const reps = rtFirstNum(w.reps != null ? w.reps : guide.reps, 10);
+  const series = rtFirstNum(w.series != null ? w.series : guide.series, 3);
+  const isTime = !!guide.repsLabel;
+  const isOpen = included && (isExec ? openExecAltSub : openRoutineSub) === sub.id;
+  const dis = included ? '' : 'disabled';
+  const isDone = isExec && doneThisSession.has(sub.id);
+
+  const exCell = isExec
+    ? `<button class="rt-ex ${isOpen ? 'open' : ''}" data-toggle="${sub.id}"><span>${ex}</span>${rtChevron}</button>
+       <button class="rt-check" data-done="${sub.id}"><span class="rt-check-box">${isDone ? EXEC_CHECK_SVG : ''}</span><span class="rt-check-label">Hecho</span></button>`
+    : included
+    ? `<button class="rt-ex ${isOpen ? 'open' : ''}" data-toggle="${sub.id}"><span>${ex}</span>${rtChevron}</button>
+       <button class="rt-opt" data-opt="${sub.id}">Quitar</button>`
+    : `<button class="rt-opt add" data-opt="${sub.id}">+ Añadir a mi rutina</button>`;
+
+  const row = `
+    <tr class="rt-row ${included ? '' : 'off'} ${isOpen ? 'open' : ''} ${isDone ? 'done' : ''}" data-sub="${sub.id}" data-ex="${ex}">
+      <td class="rt-c1">
+        <span class="rt-sub-name">${sub.name}</span>
+        <span class="rt-sub-lay">${sub.lay || ''}</span>
+      </td>
+      <td class="rt-c2">${exCell}</td>
+      <td class="rt-d">${guide.noPeso
+        ? '<span class="rt-na">—</span>'
+        : `<input class="rt-in" data-f="peso" type="text" inputmode="decimal" placeholder="lb" value="${peso}" ${dis}>`}</td>
+      <td class="rt-d"><input class="rt-in" data-f="reps" type="text" inputmode="numeric" value="${reps}" ${dis}>${isTime ? '<span class="rt-unit">seg</span>' : ''}</td>
+      <td class="rt-d"><input class="rt-in" data-f="series" type="text" inputmode="numeric" value="${series}" ${dis}></td>
+      <td class="rt-d"><button class="rt-btn" data-watch="${sub.id}" ${dis}>${rtPlaySvg}Ver</button></td>
+      <td class="rt-d"><button class="rt-btn" data-prog="${sub.id}" ${dis}>${rtChartSvg}Ver</button></td>
+    </tr>`;
+  if(!isOpen) return row;
+
+  const opts = exercisesFor(sub.muscleName, sub.name);
+  const custom = customExercises[sub.id] || [];
+  const videoBy = {};
+  custom.forEach(c => { videoBy[c.nombre] = c.video_url; });
+  const all = [...opts, ...custom.map(c => c.nombre)];
+  if(ex && !all.includes(ex)) all.unshift(ex);
+  return row + `
+    <tr class="rt-alt-row" data-alt-for="${sub.id}">
+      <td colspan="7">
+        <div class="rt-alt-panel ex-card">
+          <p class="rt-alt-title">Alternativas, de más a menos eficaz</p>
+          ${all.map(name => exOptionRow(sub.id, name, name === ex, videoBy[name])).join('')}
+          ${addExerciseRow(sub.id)}
+        </div>
+      </td>
+    </tr>`;
+}
+
+function routineGroupHtml(m, mode){
+  const rows = m.subs.map(s => SUB_INDEX[s.id]).filter(Boolean).map(s => routineTableRowHtml(s, mode)).join('');
+  return `
+    <div class="rt-group">
+      <p class="rt-muscle">${m.name}</p>
+      <div class="rt-scroll">
+        <table class="rt-table">
+          <thead><tr>
+            <th class="rt-c1">Sub-músculo</th>
+            <th class="rt-c2">Ejercicio <span class="rt-swipe">desliza →</span></th>
+            <th>Peso</th><th>Repeticiones</th><th>Series</th><th>Ejecución</th><th>Progreso</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function watchExercise(subId, exName){
+  const custom = (customExercises[subId] || []).find(c => c.nombre === exName);
+  const vid = EXERCISE_VIDEOS[exName] || (custom ? custom.video_url : null);
+  if(vid) openVideoModal(vid);
+  else openAnimModal(exName);
+}
+
+function wireRoutineTable(container, mode){
+  const isExec = mode === 'exec';
+  const rerender = isExec ? renderExecList : renderRoutineSummary;
+  const keepScroll = (fn)=>{
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    fn();
+    requestAnimationFrame(()=> window.scrollTo(0, y));
+  };
+
+  // El panel de alternativas ocupa todo el ancho visible, aunque la fila
+  // esté deslizada hacia un lado.
+  container.querySelectorAll('.rt-alt-panel').forEach(p=>{
+    const sc = p.closest('.rt-scroll');
+    if(sc) p.style.width = sc.clientWidth + 'px';
+  });
+
+  container.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.toggle;
+      if(isExec){
+        openExecAltSub = (openExecAltSub === id) ? null : id;
+      } else {
+        openRoutineSub = (openRoutineSub === id) ? null : id;
+        saveRoutineNav();
+      }
+      keepScroll(rerender);
+    });
+  });
+
+  container.querySelectorAll('[data-opt]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.opt;
+      const sub = SUB_INDEX[id];
+      if(!sub) return;
+      const on = !isSubIncluded(sub);
+      setSubIncluded(sub, on);
+      if(!on && openRoutineSub === id) openRoutineSub = null;
+      persistState(true);
+      keepScroll(renderRoutineSummary);
+    });
+  });
+
+  container.querySelectorAll('.rt-in').forEach(inp=>{
+    inp.addEventListener('focus', ()=>{ try{ inp.select(); }catch(e){} });
+    inp.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); } });
+    inp.addEventListener('change', ()=>{
+      const tr = inp.closest('tr');
+      const sub = SUB_INDEX[tr.dataset.sub];
+      const ex = tr.dataset.ex;
+      if(!sub || !ex) return;
+      const key = sub.id + '::' + ex;
+      const guide = REP_GUIDE[EXERCISE_PATTERN[ex] || 'curl'] || REP_GUIDE['curl'];
+      const prev = workData[key] || {};
+      const get = (f)=> tr.querySelector(`.rt-in[data-f="${f}"]`);
+      // Peso: vacío = sin peso todavía; si no es un número válido, se
+      // vuelve al que había.
+      let peso = prev.peso != null ? prev.peso : null;
+      const pesoEl = get('peso');
+      if(pesoEl){
+        const raw = pesoEl.value.trim().replace(',', '.');
+        if(raw === '') peso = null;
+        else {
+          const v = parseFloat(raw);
+          if(!isNaN(v) && v >= 0) peso = Math.round(v * 100) / 100;
+        }
+        pesoEl.value = peso == null ? '' : peso;
+      }
+      const toInt = (el, fallback)=>{
+        const v = parseInt(String(el.value).trim(), 10);
+        const out = (!isNaN(v) && v >= 1) ? v : fallback;
+        el.value = out;
+        return out;
+      };
+      const reps = toInt(get('reps'), rtFirstNum(prev.reps != null ? prev.reps : guide.reps, 10));
+      const series = toInt(get('series'), rtFirstNum(prev.series != null ? prev.series : guide.series, 3));
+      workData[key] = { peso, series: String(series), reps: String(reps) };
+      persistState(true);
+      // En el entreno: aviso de récord si el peso supera el de antes de empezar.
+      if(isExec && peso != null){
+        const baseline = prSnapshot[key];
+        if(baseline != null && peso > baseline && !prsHitThisSession[key]){
+          prsHitThisSession[key] = { exName: ex, peso };
+          showToast(`🔥 Nuevo récord: ${ex} ${peso}lb`, true);
+        }
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-done]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = execList.findIndex(i => i.subId === btn.dataset.done);
+      if(idx >= 0) toggleExecDone(idx);
+    });
+  });
+
+  container.querySelectorAll('[data-watch]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const tr = btn.closest('tr');
+      watchExercise(tr.dataset.sub, tr.dataset.ex);
+    });
+  });
+  container.querySelectorAll('[data-prog]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      goToStatsExercise(btn.closest('tr').dataset.ex);
+    });
+  });
+
+  container.querySelectorAll('.rt-alt-panel').forEach(panel=>{
+    const subId = panel.closest('tr').dataset.altFor;
+    panel.querySelectorAll('.ex-option:not(.add-ex-row)').forEach(opt=>{
+      opt.addEventListener('click', (e)=>{
+        if(e.target.classList.contains('ver-link')) return;
+        const ex = opt.dataset.ex;
+        if(ex !== chosenExercise[subId]){
+          chosenExercise[subId] = ex;
+          const item = execList.find(i => i.subId === subId);
+          if(item) item.exName = ex;
+          persistState(true);
+        }
+        if(isExec){ openExecAltSub = null; }
+        else { openRoutineSub = null; saveRoutineNav(); }
+        keepScroll(rerender);
+      });
+    });
+    panel.querySelectorAll('.ver-link').forEach(link=>{
+      link.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(link.dataset.video) openVideoModal(link.dataset.video);
+        else openAnimModal(link.dataset.ver);
+      });
+    });
+    const addRow = panel.querySelector('.add-ex-row');
+    if(addRow) addRow.addEventListener('click', (e)=>{ e.stopPropagation(); openAddExerciseModal(subId); });
+  });
+}
+
+// ---- v85: rutina de casa con el mismo formato de tabla que el gym ----
+// Una tabla por categoría (Cardio, Postura, Cara y cuello...). Columna fija
+// 1: el ejercicio y su objetivo (tiempo o repeticiones). Columna fija 2:
+// en "Tu rutina", Quitar / Añadir; en el entreno, el check "Hecho". Cardio
+// es una sola fila con su flecha de alternativas (se hace UNO por día).
+// Deslizando: el video y cómo hacerlo. Usa atributos propios (data-h...)
+// para no mezclarse con la tabla del gym.
+function homeCardioChosenItem(){
+  const items = homeCardioItems();
+  return items.find(i => i.id === homeCardioChoice) || items[0];
+}
+let openHomeCardioAlt = false; // alternativas de cardio abiertas en el entreno de casa
+// v89 — "Cómo hacerlo" se despliega a todo el ancho debajo del ejercicio
+// (antes era una columna que no se alcanzaba a leer entera en el móvil).
+const openHomeDesc = new Set();
+const howSvg = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function homeRowHtml(item, mode, opts){
+  opts = opts || {};
+  const isExec = mode === 'exec';
+  const isCardio = !!opts.cardio;
+  const set = isCardio ? null : homeToggleSet(item.catName);
+  const included = isCardio ? true : set.has(item.id);
+  const isDone = isExec && doneHomeSession.has(item.id);
+  const altOpen = isCardio && (isExec ? openHomeCardioAlt : openRoutineSub === 'home-cardio');
+  const vid = HOME_VIDEOS[item.name];
+  const dis = included ? '' : 'disabled';
+
+  let c1, c2;
+  const descOpen = openHomeDesc.has(item.id);
+  const howBtn = `<button class="rt-how ${descOpen ? 'open' : ''}" data-hdesc="${item.id}">Cómo hacerlo ${howSvg}</button>`;
+  if(isCardio){
+    c1 = `<span class="rt-sub-name">Cardio</span><span class="rt-sub-lay">zona 2 · ritmo en el que puedas hablar</span>${howBtn}`;
+    c2 = `<button class="rt-ex ${altOpen ? 'open' : ''}" data-htoggle="cardio"><span>${item.name}</span>${rtChevron}</button>
+          <span class="rt-sub-lay" style="margin-top:4px;">${item.target}</span>
+          ${isExec ? homeCheckHtml(item, isDone) : ''}`;
+  } else {
+    c1 = `<span class="rt-sub-name">${item.name}</span><span class="rt-sub-lay">${item.target}</span>${howBtn}`;
+    c2 = isExec
+      ? homeCheckHtml(item, isDone)
+      : (included
+        ? `<button class="rt-opt" data-hopt="${item.id}" style="margin-top:0;">Quitar</button>`
+        : `<button class="rt-opt add" data-hopt="${item.id}">+ Añadir a mi rutina</button>`);
+  }
+  const row = `
+    <tr class="rt-row ${included ? '' : 'off'} ${isDone ? 'done' : ''} ${altOpen ? 'open' : ''}" data-hid="${item.id}">
+      <td class="rt-c1">${c1}</td>
+      <td class="rt-c2">${c2}</td>
+      <td class="rt-d">${vid ? `<button class="rt-btn" data-hwatch="${item.id}" ${dis}>${rtPlaySvg}Ver</button>` : '<span class="rt-na">—</span>'}</td>
+    </tr>${descOpen ? `
+    <tr class="rt-alt-row">
+      <td colspan="3"><div class="rt-home-alt-panel rt-how-panel">${item.desc}</div></td>
+    </tr>` : ''}`;
+  if(!altOpen) return row;
+  const alts = homeCardioItems().map(it=>{
+    const v = HOME_VIDEOS[it.name];
+    return `
+      <div class="ex-option ${it.id === item.id ? 'picked' : ''}" data-hcardio="${it.id}">
+        <div class="radio"></div>
+        <div class="ex-option-name">${it.name} — ${it.target}</div>
+        ${v ? `<div class="ver-link" data-video="${v}">Ver</div>` : ''}
+      </div>`;
+  }).join('');
+  return row + `
+    <tr class="rt-alt-row">
+      <td colspan="3">
+        <div class="rt-home-alt-panel ex-card">
+          <p class="rt-alt-title">Elige tu cardio de hoy</p>
+          ${alts}
+        </div>
+      </td>
+    </tr>`;
+}
+function homeCheckHtml(item, isDone){
+  return `<button class="rt-check" data-hdone="${item.id}"><span class="rt-check-box">${isDone ? EXEC_CHECK_SVG : ''}</span><span class="rt-check-label">Hecho</span></button>`;
+}
+
+function homeGroupHtml(cat, mode){
+  const isExec = mode === 'exec';
+  let rows;
+  if(cat.name === 'Cardio (zona 2)'){
+    rows = homeRowHtml(homeCardioChosenItem(), mode, { cardio:true });
+  } else {
+    let items = cat.items;
+    if(isExec){
+      const set = homeToggleSet(cat.name);
+      items = items.filter(i => set.has(i.id));
+    }
+    if(items.length === 0) return '';
+    rows = items.map(it => homeRowHtml(it, mode)).join('');
+  }
+  const isCore = cat.name === 'Cardio (zona 2)' || cat.name === 'Postura';
+  return `
+    <div class="rt-group">
+      <p class="rt-muscle">${cat.name}${isCore ? ' <span class="rt-core-tag">· núcleo diario</span>' : ''}</p>
+      <div class="rt-scroll">
+        <table class="rt-table">
+          <thead><tr>
+            <th class="rt-c1">Ejercicio</th>
+            <th class="rt-c2">${isExec ? '' : 'En tu rutina'} <span class="rt-swipe">desliza →</span></th>
+            <th>Ejecución</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function homeTableHtml(mode){
+  return HOME_CATEGORIES.map(c => homeGroupHtml(c, mode)).join('');
+}
+
+function wireHomeTable(container, mode){
+  const isExec = mode === 'exec';
+  const rerender = isExec ? renderHomeRoutineList : renderRoutineSummary;
+  const keepScroll = (fn)=>{
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    fn();
+    requestAnimationFrame(()=> window.scrollTo(0, y));
+  };
+  container.querySelectorAll('.rt-home-alt-panel').forEach(p=>{
+    const sc = p.closest('.rt-scroll');
+    if(sc) p.style.width = sc.clientWidth + 'px';
+  });
+  container.querySelectorAll('[data-htoggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(isExec) openHomeCardioAlt = !openHomeCardioAlt;
+      else { openRoutineSub = (openRoutineSub === 'home-cardio') ? null : 'home-cardio'; saveRoutineNav(); }
+      keepScroll(rerender);
+    });
+  });
+  container.querySelectorAll('[data-hcardio]').forEach(opt=>{
+    opt.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('ver-link')) return;
+      const prev = homeCardioChosenItem().id;
+      homeCardioChoice = opt.dataset.hcardio;
+      // Si el cardio anterior ya estaba "Hecho", el nuevo hereda el check.
+      if(isExec && doneHomeSession.has(prev) && prev !== homeCardioChoice){
+        doneHomeSession.delete(prev);
+        doneHomeSession.add(homeCardioChoice);
+      }
+      persistHomeSetup();
+      if(isExec) openHomeCardioAlt = false;
+      else { openRoutineSub = null; saveRoutineNav(); }
+      keepScroll(rerender);
+    });
+  });
+  container.querySelectorAll('.rt-home-alt-panel .ver-link, [data-hwatch]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const url = el.dataset.video || HOME_VIDEOS[(HOME_LIST.find(i => i.id === el.dataset.hwatch) || {}).name];
+      if(url) openVideoModal(url);
+    });
+  });
+  container.querySelectorAll('[data-hdesc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.hdesc;
+      if(openHomeDesc.has(id)) openHomeDesc.delete(id); else openHomeDesc.add(id);
+      keepScroll(rerender);
+    });
+  });
+  container.querySelectorAll('[data-hopt]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const item = HOME_LIST.find(i => i.id === btn.dataset.hopt);
+      if(!item) return;
+      const set = homeToggleSet(item.catName);
+      if(set.has(item.id)) set.delete(item.id); else set.add(item.id);
+      persistHomeSetup();
+      keepScroll(rerender);
+    });
+  });
+  container.querySelectorAll('[data-hdone]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = HOME_LIST.findIndex(i => i.id === btn.dataset.hdone);
+      if(idx >= 0) toggleHomeDone(idx);
+    });
+  });
+}
 
 function renderRoutineSummary(){
   const container = document.getElementById('routineSummaryBoard');
@@ -4547,13 +6285,6 @@ function renderRoutineSummary(){
     const accent = dayAssignment[slotNum] || slotNum;
     const dayObj = DAYS.find(d => d.accent === accent);
     if(!dayObj) return;
-    const items = Object.keys(SUB_INDEX)
-      .filter(id => checkedSubIds.has(id))
-      .map(id => SUB_INDEX[id])
-      .filter(sub => sub.dayName === dayObj.name);
-    const body = items.length > 0
-      ? items.map(sub => routineRowHtml(sub)).join('')
-      : `<p class="summary-row" style="color:var(--text-dim);">Todavía no marcaste ningún ejercicio para este día.</p>`;
     html += `
       <div class="day" data-accent="${dayObj.accent}">
         <div class="day-head">
@@ -4562,49 +6293,290 @@ function renderRoutineSummary(){
             <p class="name">${dayObj.name}</p>
           </div>
         </div>
-        <div class="muscles" style="padding:6px 20px 18px;">
-          ${body}
+        <div class="rt-body">
+          ${dayObj.muscles.map(m => routineGroupHtml(m)).join('')}
         </div>
       </div>`;
   });
-  container.innerHTML = html || '<p style="text-align:center;color:var(--text-dim);padding:10px 20px 20px;">No marcaste ningún ejercicio.</p>';
+  // "Rutina de casa" (Cardio + Postura, los dos fijos) va pegada abajo de
+  // los 3 días de gym, en el MISMO formato de fila (título + descripción
+  // motivante siempre visible + lo elegido debajo) — así se arma todo de
+  // una sola vez, como pidió Carlos, en vez de ser una pantalla aparte.
+  const homeSectionHtml = `
+    <div class="day" data-accent="1" style="margin-top:18px;">
+      <div class="day-head">
+        <div class="day-num">🏠<span class="day-num-kicker">Casa</span></div>
+        <div class="day-title">
+          <p class="name">Rutina de casa</p>
+          <p class="desc">Para los días que no vas al gimnasio — 10-15 min reales, no relleno.</p>
+        </div>
+      </div>
+      <div class="rt-body">${homeTableHtml('routine')}</div>
+    </div>`;
+
+  container.innerHTML = (html || '<p style="text-align:center;color:var(--text-dim);padding:10px 20px 20px;">No marcaste ningún ejercicio.</p>') + homeSectionHtml;
 
   container.querySelectorAll('.summary-row-head').forEach(head=>{
     head.addEventListener('click', ()=>{
+      // Antes esto hacía scrollIntoView para llevar la fila tocada arriba
+      // de todo — el cliente lo sentía como que "se sube" la pantalla, en
+      // vez de desplegarse ahí mismo. Nada ARRIBA de esta fila cambia de
+      // tamaño al abrirla/cerrarla, así que con solo mantener el mismo
+      // scroll de antes, la fila se queda exactamente en su lugar y el
+      // contenido nuevo se despliega justo debajo, sin saltos.
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
       const subId = head.closest('.summary-row').dataset.sub;
       openRoutineSub = (openRoutineSub === subId) ? null : subId;
+      saveRoutineNav();
       renderRoutineSummary();
-      if(openRoutineSub){
-        const openedEl = container.querySelector('.summary-row.open');
-        if(openedEl) openedEl.scrollIntoView({block:'start', behavior:'smooth'});
-      }
+      requestAnimationFrame(()=> window.scrollTo(0, scrollY));
     });
   });
 
-  if(openRoutineSub) wireRoutineItemBody(SUB_INDEX[openRoutineSub]);
+  wireRoutineTable(container, 'routine');
+  wireHomeTable(container, 'routine');
 }
 
-// Cabecera de cada fila: músculo — sub-músculo, y debajo el ejercicio ya
-// elegido (con peso/series/reps si ya tiene datos guardados) o, si
-// todavía no se ha elegido ninguno, la descripción motivante del
-// sub-músculo — así nunca se ve una fila vacía o con "sin elegir".
+// ---- Fila "Cardio" dentro de Tu rutina: igual que un sub-músculo del gym,
+// pero con UNA sola alternativa elegible entre las 4 (no hay peso/series). ----
+function homeCardioRowHtml(){
+  const isOpen = openRoutineSub === 'home-cardio';
+  const chosen = homeCardioItems().find(i => i.id === homeCardioChoice);
+  return `
+    <div class="summary-row ${isOpen ? 'open' : ''}" data-sub="home-cardio">
+      <div class="summary-row-head">
+        <div>
+          <p class="summary-row-title">Cardio (zona 2)</p>
+          <p class="summary-row-desc">El pilar con más evidencia científica para longevidad — elige la opción que vayas a hacer en tus días sin gym.</p>
+          ${chosen ? `<p class="summary-row-ex">${chosen.name} — ${chosen.target}</p>` : ''}
+        </div>
+        <svg class="summary-row-edit" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      ${isOpen ? homeCardioBodyHtml() : ''}
+    </div>`;
+}
+
+function homeCardioBodyHtml(){
+  const optionsHtml = homeCardioItems().map(it=>{
+    const isPicked = it.id === homeCardioChoice;
+    const vid = HOME_VIDEOS[it.name];
+    const verHtml = vid ? `<div class="ver-link" data-video="${vid}">Ver</div>` : '';
+    return `
+      <div class="ex-option ${isPicked ? 'picked' : ''}" data-home-cardio="${it.id}">
+        <div class="radio"></div>
+        <div class="ex-option-name">${it.name} — ${it.target}<br><span style="font-size:12px;font-weight:400;opacity:.7;">${it.desc}</span></div>
+        ${verHtml}
+      </div>`;
+  }).join('');
+  return `<div class="exec-item-body"><div class="ex-card routine-ex-card" id="homeCardioCard">${optionsHtml}</div></div>`;
+}
+
+function wireHomeCardioRow(){
+  const cardEl = document.getElementById('homeCardioCard');
+  if(!cardEl) return;
+  cardEl.querySelectorAll('.ex-option').forEach(opt=>{
+    opt.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('ver-link')) return;
+      e.stopPropagation();
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      homeCardioChoice = opt.dataset.homeCardio;
+      persistHomeSetup();
+      renderRoutineSummary();
+      requestAnimationFrame(()=> window.scrollTo(0, scrollY));
+    });
+  });
+  cardEl.querySelectorAll('.ver-link').forEach(link=>{
+    link.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(link.dataset.video) openVideoModal(link.dataset.video);
+    });
+  });
+}
+
+// ---- Fila "Postura" dentro de Tu rutina: 6 independientes, incluidos por
+// defecto — se destilda solo el que de verdad no se pueda hacer. ----
+// Fila genérica para cualquier categoría "de lista" (Postura y las 5
+// extra) — todas se comportan igual: independientes entre sí, incluidas
+// por defecto, con su video de ejecución correcta. Antes esto solo
+// existía para Postura (y sin video); ahora sirve para las 6.
+function homeToggleCategoryRowHtml(catName){
+  const slug = slugId(catName);
+  const isOpen = openRoutineSub === ('home-cat-' + slug);
+  const items = HOME_CATEGORIES.find(c => c.name === catName).items;
+  const set = homeToggleSet(catName);
+  const includedCount = items.filter(i => set.has(i.id)).length;
+  const intro = catName === 'Postura'
+    ? 'Cada uno es independiente — hazlos todos. Corrigen hombros, cuello y cadera, lo que el gym no toca.'
+    : HOME_EXTRA_INTRO[catName];
+  return `
+    <div class="summary-row ${isOpen ? 'open' : ''}" data-sub="home-cat-${slug}">
+      <div class="summary-row-head">
+        <div>
+          <p class="summary-row-title">${catName}</p>
+          <p class="summary-row-desc">${intro}</p>
+          <p class="summary-row-ex">${includedCount} de ${items.length} incluidos</p>
+        </div>
+        <svg class="summary-row-edit" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      ${isOpen ? homeToggleCategoryBodyHtml(catName) : ''}
+    </div>`;
+}
+
+function homeToggleCategoryBodyHtml(catName){
+  const slug = slugId(catName);
+  const items = HOME_CATEGORIES.find(c => c.name === catName).items;
+  const set = homeToggleSet(catName);
+  const rows = items.map(it=>{
+    const isOn = set.has(it.id);
+    const vid = HOME_VIDEOS[it.name];
+    const verHtml = vid ? `<div class="ver-link" data-video="${vid}" style="margin-left:auto;flex-shrink:0;">Ver</div>` : '';
+    return `
+      <div class="sub ${isOn ? 'on' : ''}" data-sub="${it.id}">
+        <div class="sub-head" data-home-toggle-id="${it.id}" style="align-items:flex-start;">
+          <div class="box">${checkSvg}</div>
+          <div class="sub-text">
+            <p class="sub-name">${it.name}</p>
+            <p class="sub-desc">${it.desc}</p>
+          </div>
+          ${verHtml}
+        </div>
+      </div>`;
+  }).join('');
+  return `<div class="exec-item-body"><div class="ex-card routine-ex-card" id="homeCatCard-${slug}" style="padding:8px 0;">${rows}</div></div>`;
+}
+
+function wireHomeToggleCategoryRow(catName){
+  const slug = slugId(catName);
+  const cardEl = document.getElementById('homeCatCard-' + slug);
+  if(!cardEl) return;
+  const set = homeToggleSet(catName);
+  cardEl.querySelectorAll('[data-home-toggle-id]').forEach(head=>{
+    head.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('ver-link')) return;
+      const id = head.dataset.homeToggleId;
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      if(set.has(id)) set.delete(id); else set.add(id);
+      persistHomeSetup();
+      renderRoutineSummary();
+      requestAnimationFrame(()=> window.scrollTo(0, scrollY));
+    });
+  });
+  cardEl.querySelectorAll('.ver-link').forEach(link=>{
+    link.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(link.dataset.video) openVideoModal(link.dataset.video);
+    });
+  });
+}
+
+// Cabecera de cada fila: músculo — sub-músculo, la descripción motivante
+// SIEMPRE visible (ya no se reemplaza), y debajo, solo si ya hay uno
+// elegido, el ejercicio (con peso/series/reps si ya tiene datos guardados).
+// Conecta el arrastre (dedo mantenido sobre el ícono ⣿ de cada fila) para
+// reordenar los sub-músculos de un día — al soltar, se guarda el nuevo
+// orden en Supabase (routineSubOrder) y ese mismo orden es el que después
+// usa "Iniciar" para armar la sesión del gym, no solo esta pantalla.
+function wireRoutineDragHandles(){
+  document.querySelectorAll('.muscles[data-drag-day]').forEach(container=>{
+    const dayName = container.dataset.dragDay;
+    container.querySelectorAll('.drag-handle').forEach(handle=>{
+      handle.addEventListener('click', (e)=> e.stopPropagation());
+      handle.addEventListener('pointerdown', (e)=>{
+        if(e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rowEl = handle.closest('.summary-row');
+        if(!rowEl) return;
+        let startY = e.clientY;
+        let done = false;
+        rowEl.classList.add('dragging');
+        try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+
+        function rows(){ return [...container.querySelectorAll('.summary-row')]; }
+
+        function onMove(ev){
+          try{
+            if(ev.cancelable) ev.preventDefault();
+            const dy = ev.clientY - startY;
+            rowEl.style.transform = `translateY(${dy}px)`;
+            const rect = rowEl.getBoundingClientRect();
+            const centerY = rect.top + rect.height / 2;
+            const list = rows();
+            const idx = list.indexOf(rowEl);
+            const prev = list[idx - 1];
+            if(prev){
+              const pr = prev.getBoundingClientRect();
+              if(centerY < pr.top + pr.height / 2){
+                container.insertBefore(rowEl, prev);
+                startY -= pr.height;
+                rowEl.style.transform = `translateY(${ev.clientY - startY}px)`;
+                return;
+              }
+            }
+            const next = list[idx + 1];
+            if(next){
+              const nr = next.getBoundingClientRect();
+              if(centerY > nr.top + nr.height / 2){
+                container.insertBefore(rowEl, next.nextSibling);
+                startY += nr.height;
+                rowEl.style.transform = `translateY(${ev.clientY - startY}px)`;
+              }
+            }
+          }catch(err){
+            cleanup(ev);
+          }
+        }
+        function cleanup(ev){
+          if(done) return;
+          done = true;
+          try{ handle.releasePointerCapture(ev.pointerId); }catch(err){}
+          handle.removeEventListener('pointermove', onMove);
+          handle.removeEventListener('pointerup', onUp);
+          handle.removeEventListener('pointercancel', onUp);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+          rowEl.classList.remove('dragging');
+          rowEl.style.transform = '';
+          routineSubOrder[dayName] = rows().map(el => el.dataset.sub);
+          persistSubOrder();
+        }
+        function onUp(ev){
+          cleanup(ev);
+        }
+        handle.addEventListener('pointermove', onMove, { passive:false });
+        handle.addEventListener('pointerup', onUp);
+        handle.addEventListener('pointercancel', onUp);
+        // Red de seguridad: si por algún motivo el handle pierde la captura
+        // del puntero (algunos Android la sueltan sin avisar), esto garantiza
+        // que el arrastre igual se cierre y la app no se quede bloqueada.
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+      });
+    });
+  });
+}
+
 function routineRowHtml(sub){
   const isOpen = sub.id === openRoutineSub;
   const chosen = chosenExercise[sub.id];
   const wd = chosen ? workData[sub.id + '::' + chosen] : null;
-  let exLine = sub.desc;
+  let chosenLine = '';
   if(chosen){
-    exLine = chosen;
+    chosenLine = chosen;
     if(wd && wd.peso != null){
-      exLine += ` (${wd.peso}lb, ${wd.series || '—'} series, ${wd.reps || '—'} reps)`;
+      chosenLine += ` (${wd.peso}lb, ${wd.series || '—'} series, ${wd.reps || '—'} reps)`;
     }
   }
   return `
     <div class="summary-row ${isOpen ? 'open' : ''}" data-sub="${sub.id}">
       <div class="summary-row-head">
-        <div>
+        <div class="drag-handle" aria-label="Mantén presionado y arrastra para reordenar">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><circle cx="9" cy="6" r="1.6" fill="currentColor"/><circle cx="9" cy="12" r="1.6" fill="currentColor"/><circle cx="9" cy="18" r="1.6" fill="currentColor"/><circle cx="15" cy="6" r="1.6" fill="currentColor"/><circle cx="15" cy="12" r="1.6" fill="currentColor"/><circle cx="15" cy="18" r="1.6" fill="currentColor"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
           <p class="summary-row-title">${sub.muscleName} — ${sub.name}</p>
-          <p class="summary-row-ex ${chosen ? '' : 'is-desc'}">${exLine}</p>
+          <p class="summary-row-desc">${sub.desc}</p>
+          ${chosen ? `<p class="summary-row-ex">${chosenLine}</p>` : ''}
         </div>
         <svg class="summary-row-edit" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -4612,9 +6584,51 @@ function routineRowHtml(sub){
     </div>`;
 }
 
+// Campos de peso/series/reps del ejercicio ya elegido — se insertan justo
+// debajo de ESE ejercicio dentro de la lista, no al final de los 3.
+function routineFieldsHtml(sub, picked){
+  const patternKey = EXERCISE_PATTERN[picked] || 'curl';
+  const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
+  const workKey = sub.id + '::' + picked;
+  const saved = workData[workKey] || {};
+  const firstNum = (val, fallback)=>{
+    const m = String(val == null ? '' : val).match(/\d+/);
+    return m ? parseInt(m[0], 10) : fallback;
+  };
+  const pesoVal = (saved.peso != null && saved.peso !== '') ? Number(saved.peso) : null;
+  const seriesVal = firstNum(saved.series != null ? saved.series : guide.series, 3);
+  const repsVal = firstNum(saved.reps != null ? saved.reps : guide.reps, 10);
+  const repsLabel = guide.repsLabel || 'Repeticiones';
+  return `
+    <div class="routine-fields-inline">
+      <div class="exec-fields">
+        ${guide.noPeso ? '' : `
+        <div class="exec-field">
+          <label>Peso (lb)</label>
+          <div class="peso-slider" id="routinePesoSlider">
+            <span class="stepper-val" id="routinePeso">${pesoVal}</span>
+          </div>
+        </div>`}
+        <div class="exec-field">
+          <label>Series</label>
+          <div class="peso-slider" id="routineSeriesSlider">
+            <span class="stepper-val" id="routineSeries">${seriesVal}</span>
+          </div>
+        </div>
+        <div class="exec-field">
+          <label>${repsLabel}</label>
+          <div class="peso-slider" id="routineRepsSlider">
+            <span class="stepper-val" id="routineReps">${repsVal}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 // Interior desplegado: las 3 alternativas de ejercicio (igual que "Ver
-// alternativas" en Ejecución) y, en cuanto hay uno elegido, los campos de
-// peso/series/reps para dejarlo listo desde ya.
+// alternativas" en Ejecución), con fondo distinto al del título para que
+// se note que ahí es donde se está operando. En cuanto hay uno elegido,
+// sus campos de peso/series/reps aparecen pegados debajo de ESE ejercicio.
 function routineItemBodyHtml(sub){
   const opts = exercisesFor(sub.muscleName, sub.name);
   const custom = customExercises[sub.id] || [];
@@ -4623,49 +6637,19 @@ function routineItemBodyHtml(sub){
   const allNames = [...opts, ...custom.map(c => c.nombre)];
   const picked = chosenExercise[sub.id];
 
-  let fieldsHtml = '';
-  if(picked){
-    const patternKey = EXERCISE_PATTERN[picked] || 'curl';
-    const guide = REP_GUIDE[patternKey] || REP_GUIDE['curl'];
-    const workKey = sub.id + '::' + picked;
-    const saved = workData[workKey] || {};
-    const firstNum = (val, fallback)=>{
-      const m = String(val == null ? '' : val).match(/\d+/);
-      return m ? parseInt(m[0], 10) : fallback;
-    };
-    const pesoVal = saved.peso != null ? Number(saved.peso) : guide.peso;
-    const seriesVal = firstNum(saved.series != null ? saved.series : guide.series, 3);
-    const repsVal = firstNum(saved.reps != null ? saved.reps : guide.reps, 10);
-    fieldsHtml = `
-      <div class="exec-fields" style="margin-top:16px;">
-        <div class="exec-field">
-          <label>Peso (lb)</label>
-          <div class="peso-slider" id="routinePesoSlider">
-            <span class="stepper-val" id="routinePeso">${pesoVal}</span>
-          </div>
-        </div>
-        <div class="exec-field">
-          <label>Series</label>
-          <div class="peso-slider" id="routineSeriesSlider">
-            <span class="stepper-val" id="routineSeries">${seriesVal}</span>
-          </div>
-        </div>
-        <div class="exec-field">
-          <label>Repeticiones</label>
-          <div class="peso-slider" id="routineRepsSlider">
-            <span class="stepper-val" id="routineReps">${repsVal}</span>
-          </div>
-        </div>
-      </div>`;
-  }
+  const fieldsHidden = routineFieldsCollapsed.has(sub.id);
+  const optionsHtml = allNames.map(ex=>{
+    const isPicked = ex === picked;
+    const row = exOptionRow(sub.id, ex, isPicked, videoBySub[ex]);
+    return isPicked ? (row + (fieldsHidden ? '' : routineFieldsHtml(sub, ex))) : row;
+  }).join('');
 
   return `
     <div class="exec-item-body">
-      <div class="ex-card" id="routineExCard-${sub.id}" style="padding:2px 0 4px;border:none;background:transparent;margin-bottom:0;">
-        ${allNames.map(ex => exOptionRow(sub.id, ex, ex === picked, videoBySub[ex])).join('')}
+      <div class="ex-card routine-ex-card" id="routineExCard-${sub.id}">
+        ${optionsHtml}
         ${addExerciseRow(sub.id)}
       </div>
-      ${fieldsHtml}
     </div>`;
 }
 
@@ -4679,9 +6663,24 @@ function wireRoutineItemBody(sub){
     opt.addEventListener('click', (e)=>{
       if(e.target.classList.contains('ver-link')) return;
       e.stopPropagation();
-      chosenExercise[sub.id] = opt.dataset.ex;
-      persistState(true);
+      // Al elegir la alternativa, renderRoutineSummary() reconstruye todo
+      // el listado — sin esto, ese redibujado hacía que la página saltara
+      // arriba de todo, en vez de quedarse exactamente donde se tocó.
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const ex = opt.dataset.ex;
+      if(ex === chosenExercise[sub.id]){
+        // Ya era el ejercicio elegido — un segundo toque solo oculta o
+        // vuelve a mostrar su panel de peso/series/reps, sin tocar cuál
+        // ejercicio está elegido ni disparar un guardado de más.
+        if(routineFieldsCollapsed.has(sub.id)) routineFieldsCollapsed.delete(sub.id);
+        else routineFieldsCollapsed.add(sub.id);
+      } else {
+        chosenExercise[sub.id] = ex;
+        routineFieldsCollapsed.delete(sub.id);
+        persistState(true);
+      }
       renderRoutineSummary();
+      requestAnimationFrame(()=> window.scrollTo(0, scrollY));
     });
   });
   cardEl.querySelectorAll('.ver-link').forEach(link=>{
@@ -4700,8 +6699,9 @@ function wireRoutineItemBody(sub){
   }
 
   const picked = chosenExercise[sub.id];
+  const seriesDisplayCheck = document.getElementById('routineSeries');
+  if(!picked || !seriesDisplayCheck) return;
   const pesoDisplay = document.getElementById('routinePeso');
-  if(!picked || !pesoDisplay) return;
 
   const workKey = sub.id + '::' + picked;
   const patternKey = EXERCISE_PATTERN[picked] || 'curl';
@@ -4724,7 +6724,7 @@ function wireRoutineItemBody(sub){
 
   function openInlineEditor(displayEl, current, allowDecimals, onCommit){
     if(displayEl.querySelector('input')) return;
-    displayEl.innerHTML = `<input type="text" inputmode="${allowDecimals ? 'decimal' : 'numeric'}" class="stepper-input" value="${current}">`;
+    displayEl.innerHTML = `<input type="text" inputmode="${allowDecimals ? 'decimal' : 'numeric'}" class="stepper-input" value="${current == null ? '' : current}">`;
     const inp = displayEl.querySelector('input');
     inp.focus();
     inp.select();
@@ -4735,7 +6735,7 @@ function wireRoutineItemBody(sub){
       committed = true;
       let val = parseFloat(String(inp.value || '').replace(',', '.'));
       if(isNaN(val) || val < 0) val = current;
-      val = allowDecimals ? Math.round(val * 100) / 100 : Math.round(val);
+      if(val != null) val = allowDecimals ? Math.round(val * 100) / 100 : Math.round(val);
       onCommit(val);
     }
     inp.addEventListener('blur', commit);
@@ -4746,6 +6746,7 @@ function wireRoutineItemBody(sub){
 
   function makeTapField(sliderId, onTapEdit){
     const sliderEl = document.getElementById(sliderId);
+    if(!sliderEl) return;
     sliderEl.addEventListener('click', (e)=>{
       e.stopPropagation();
       if(sliderEl.querySelector('input')) return;
@@ -4781,6 +6782,19 @@ let routineSummaryMode = 'done';
 
 function goToRoutineSummary(mode){
   routineSummaryMode = mode || 'done';
+  // Si Android mató la pestaña en segundo plano (por ejemplo, al salir a
+  // ver un video en YouTube) y esta pantalla se está reconstruyendo desde
+  // cero, se recupera qué fila estaba abierta para que no reaparezca
+  // colapsada arriba de todo.
+  if(openRoutineSub === null){
+    try{
+      const savedNav = JSON.parse(localStorage.getItem(ROUTINE_NAV_KEY) || 'null');
+      const isHomeRow = savedNav && savedNav.openSub && (savedNav.openSub === 'home-cardio' || savedNav.openSub.startsWith('home-cat-'));
+      if(savedNav && savedNav.openSub && (isHomeRow || SUB_INDEX[savedNav.openSub])){
+        openRoutineSub = savedNav.openSub;
+      }
+    }catch(e){}
+  }
   hideAllViews();
   renderRoutineSummary();
   const toggle = document.getElementById('routineSummaryToggle');
@@ -4795,7 +6809,7 @@ function goToRoutineSummary(mode){
   startBtn.textContent = 'Iniciar';
   if(routineSummaryMode === 'view'){
     title.textContent = 'Tu rutina';
-    subtitle.textContent = 'Toca cualquier ejercicio para cambiarlo o ajustar el peso.';
+    subtitle.textContent = 'Toca el ejercicio para ver sus alternativas. Desliza la fila para anotar peso, repeticiones y series.';
     storeBtn.style.display = 'none';
   } else {
     title.textContent = '¡Rutina armada! ✅';
@@ -4805,7 +6819,13 @@ function goToRoutineSummary(mode){
   viewRoutineSummary.style.display = 'block';
   currentView = 'routine-summary';
   continueBtn.style.visibility = 'hidden';
-  window.scrollTo(0,0);
+  if(openRoutineSub){
+    const openedEl = document.getElementById('routineSummaryBoard').querySelector('.summary-row.open, tr.rt-row.open');
+    if(openedEl) openedEl.scrollIntoView({block:'start'});
+    else window.scrollTo(0,0);
+  } else {
+    window.scrollTo(0,0);
+  }
   pushNav();
 }
 
@@ -4820,23 +6840,30 @@ async function routeInitialScreen(){
   // (el resumen, la ejecución, etc.), esa es la que se respeta.
   let lastView = null;
   let lastExtra = null;
+  let lastDate = null;
   try{
     const raw = localStorage.getItem(LAST_VIEW_KEY);
     if(raw){
       // Antes solo se guardaba el nombre como texto plano — si ese es el
       // valor que queda de una versión anterior, JSON.parse falla y se usa
-      // tal cual, como el nombre de la vista sin datos extra.
+      // tal cual, como el nombre de la vista sin datos extra (y sin fecha,
+      // por lo que se trata como si fuera de un día anterior — ver abajo).
       try{
         const parsed = JSON.parse(raw);
         lastView = parsed.view;
         lastExtra = parsed.extra;
+        lastDate = parsed.date || null;
       }catch(e){
         lastView = raw;
       }
     }
   }catch(e){}
-  if(lastView && lastView !== 'home'){
+  // Solo se respeta la pantalla guardada si es de HOY — reabrir la app un
+  // día distinto siempre debe empezar en Inicio, para elegir gym o casa,
+  // en vez de reaparecer para siempre en lo último que se vio.
+  if(lastView && lastView !== 'home' && lastDate === localDateStr(new Date())){
     restoreView(lastView, lastExtra);
+    restoreScrollPos(lastView);
     return;
   }
 
@@ -4868,10 +6895,12 @@ async function routeInitialScreen(){
     // si falla la consulta, no bloqueamos el acceso — se va a Inicio normal
   }
   goHome();
+  restoreScrollPos('home');
 }
 
 function onLoggedOut(){
   currentUser = null;
+  lastSavedRows = new Map();
   authGate.classList.remove('hidden');
   setAuthMsg('');
   const profileEmail = document.getElementById('profileEmail');
@@ -4881,8 +6910,20 @@ function onLoggedOut(){
 // onAuthStateChange ya dispara una vez al suscribirse (evento INITIAL_SESSION)
 // con la sesión actual, así que no hace falta llamar a getSession() aparte
 // (evitamos pedir el estado dos veces y duplicar la carga de progreso).
+// v75 — Supabase vuelve a disparar este evento (TOKEN_REFRESHED, y SIGNED_IN
+// otra vez al volver a la pestaña tras bloquear el celular) para el MISMO
+// usuario. Antes cada disparo recargaba todo desde Supabase y re-pintaba la
+// pantalla en mitad del entreno — eso se sentía como la app "congelada"
+// o sin responder al desbloquear el teléfono. Ahora solo se hace la carga
+// completa la primera vez (o si cambia de cuenta).
 sb.auth.onAuthStateChange((event, session)=>{
-  if(session && session.user) onLoggedIn(session.user);
+  if(session && session.user){
+    if(currentUser && currentUser.id === session.user.id){
+      currentUser = session.user; // solo se actualiza el token, sin recargar nada
+      return;
+    }
+    onLoggedIn(session.user);
+  }
   else onLoggedOut();
 });
 
